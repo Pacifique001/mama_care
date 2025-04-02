@@ -1,0 +1,99 @@
+name: mama_care
+description: "A Flutter app for maternal care."
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI & Utilities
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+  flutter_svg: ^2.0.8
+  sizer: ^3.0.5
+  smooth_page_indicator: ^1.1.0
+  carousel_slider: ^5.0.0
+  table_calendar: ^3.0.9
+
+  # State Management
+  provider: ^6.1.1
+  get_it: ^8.0.0
+  equatable: ^2.0.5
+
+  # Firebase
+  firebase_core: ^3.12.1
+  firebase_auth: ^5.5.1
+  cloud_firestore: ^5.6.5
+  google_sign_in: ^6.3.0
+  firebase_messaging: ^15.1.1
+
+  # Local Storage
+  sqflite: ^2.3.3
+  path: ^1.8.3
+
+  # Location & Maps
+  google_maps_flutter: ^2.5.0
+  geolocator: ^13.0.3
+  geocoding: ^3.0.0
+
+  # Networking
+  dio: ^5.4.0
+  url_launcher: ^6.3.0
+
+  # Dependency Injection
+  injectable: ^2.1.1
+
+  # Date/Time
+  intl: ^0.20.2
+
+  # JSON Serialization
+  json_annotation: ^4.9.0
+
+  # Media
+  video_player: ^2.8.1
+  home_widget: ^0.7.0+1  # Updated to resolved version
+  mailer: ^6.4.1
+  flutter_local_notifications: ^19.0.0
+  latlong2: ^0.9.1
+  image_picker: ^1.1.2
+  
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  
+
+  # Code Generation
+  build_runner: ^2.4.15
+  injectable_generator: ^2.7.0
+  json_serializable: ^6.7.1
+
+flutter:
+  uses-material-design: true
+
+  fonts:
+    - family: ProductSans
+      fonts:
+        - asset: assets/fonts/product-sans/Product Sans Regular.ttf
+        - asset: assets/fonts/product-sans/Product Sans Italic.ttf
+          style: italic
+        - asset: assets/fonts/product-sans/Product Sans Bold.ttf
+          weight: 700
+
+  assets:
+    - assets/images/article/
+    - assets/images/exercise/
+    - assets/images/pregnancy detail/
+    - assets/images/logo.png
+    - assets/images/google_icon.png
+    - assets/svg/onboarding/
+    - assets/svg/dashboard/
+    - assets/svg/timeline/
+    - assets/svg/suggested_food/
