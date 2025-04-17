@@ -6,361 +6,441 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:mama_care/navigation/router.dart';
 import 'package:mama_care/presentation/viewmodel/profile_viewmodel.dart';
 import 'package:mama_care/utils/asset_helper.dart';
-import '../widgets/mama_care_app_bar.dart';
+import 'package:mama_care/presentation/widgets/mama_care_app_bar.dart';
+import 'package:mama_care/domain/entities/pregnancy_details.dart';
 
 class ProfileView extends StatefulWidget {
-  const ProfileView({Key? key}) : super(key: key);
+  const ProfileView({super.key});
 
   @override
   State<ProfileView> createState() => _ProfileViewState();
 }
 
 class _ProfileViewState extends State<ProfileView> {
+  late final ScrollController _scrollController;
+
   @override
   void initState() {
     super.initState();
-    final profileViewModel =
-        Provider.of<ProfileViewModel>(context, listen: false);
-    profileViewModel.getPregnancyDetails();
+    _scrollController = ScrollController();
+    // Trigger initial data load
+    Future.microtask(() => context.read<ProfileViewModel>().getPregnancyDetails());
   }
 
-  static const List<Map<String, dynamic>> _articleData = AssetsHelper.articleData;
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _refreshData() async {
+    await context.read<ProfileViewModel>().refreshData();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ProfileViewModel>(
-      builder: (context, profileViewModel, child) => Scaffold(
-        appBar: MamaCareAppBar(
-          title: "Week: ${((DateTime.now().difference(profileViewModel.pregnancyDetails?.dueDate ?? DateTime.now()).inDays) ~/ 7) + 1}",
-        ),
-        body: LayoutBuilder(
-          builder: (context, constraints) => Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildCalendar(profileViewModel),
-                  SizedBox(height: 3.h),
-                  _buildBabyInfoCard(profileViewModel),
-                  SizedBox(height: 3.h),
-                  _buildSavedVideos(constraints),
-                  SizedBox(height: 3.h),
-                  _buildSavedArticles(constraints),
-                ],
-              ),
-            ),
-          ),
+    return Scaffold(
+      appBar: _buildAppBar(context),
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        child: _buildContent(),
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar(BuildContext context) {
+  return MamaCareAppBar(
+    title: Provider.of<ProfileViewModel>(context).pregnancyDetails?.weeksPregnant != null
+        ? "Week: ${Provider.of<ProfileViewModel>(context).pregnancyDetails!.weeksPregnant}"
+        : "Week: 0",
+  );
+}
+
+  Widget _buildContent() {
+    return Selector<ProfileViewModel, ViewState>(
+      selector: (_, vm) => vm.viewState,
+      builder: (context, state, _) {
+        switch (state) {
+          case ViewState.loading:
+            return _buildLoading();
+          case ViewState.error:
+            return _buildError();
+          case ViewState.success:
+            return _buildSuccessContent();
+          case ViewState.initial:
+          default:
+            return _buildInitial();
+        }
+      },
+    );
+  }
+
+  Widget _buildLoading() => const Center(child: CircularProgressIndicator());
+
+  Widget _buildInitial() => const Center(child: Text('Start tracking your pregnancy journey!'));
+
+  Widget _buildError() {
+    return Center(
+      child: Selector<ProfileViewModel, String?>(
+        selector: (_, vm) => vm.errorMessage,
+        builder: (_, error, __) => Text(
+          error ?? 'Unknown error occurred',
+          style: TextStyle(color: Colors.red, fontSize: 14.sp),
         ),
       ),
     );
   }
 
-  Widget _buildCalendar(ProfileViewModel viewModel) {
-    return TableCalendar(
-      headerVisible: false,
-      daysOfWeekVisible: false,
-      focusedDay: DateTime.now(),
-      firstDay: DateTime.fromMillisecondsSinceEpoch(viewModel.pregnancyDetails?.startingDay ?? DateTime.now().millisecondsSinceEpoch),
-      lastDay: DateTime.fromMillisecondsSinceEpoch(viewModel.pregnancyDetails?.startingDay ?? DateTime.now().millisecondsSinceEpoch),
-      calendarFormat: CalendarFormat.week,
-      calendarBuilders: CalendarBuilders(
-        todayBuilder: (context, day, focusedDay) => Padding(
-          padding: const EdgeInsets.all(2.0),
-          child: Container(
-            padding: const EdgeInsets.all(5),
-            child: Center(
-              child: Text(
-                DateTime.fromMillisecondsSinceEpoch(day.millisecondsSinceEpoch)
-                    .difference(DateTime.fromMillisecondsSinceEpoch(
-                  viewModel.pregnancyDetails?.startingDay ?? DateTime.now().millisecondsSinceEpoch,
-                ))
-                    .inDays
-                    .toString(),
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.white,
-                    ),
-              ),
-            ),
-            decoration: BoxDecoration(
-              color: Colors.pinkAccent,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-        defaultBuilder: (context, day, focusedDay) => Padding(
-          padding: const EdgeInsets.all(2.0),
-          child: Container(
-            padding: const EdgeInsets.all(5),
-            child: Center(
-              child: Text(
-                DateTime.fromMillisecondsSinceEpoch(day.millisecondsSinceEpoch)
-                    .difference(DateTime.fromMillisecondsSinceEpoch(
-                  viewModel.pregnancyDetails?.startingDay ?? DateTime.now().millisecondsSinceEpoch,
-                ))
-                    .inDays
-                    .toString(),
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-        outsideBuilder: (context, day, focusedDay) => Padding(
-          padding: const EdgeInsets.all(2.0),
-          child: Container(
-            padding: const EdgeInsets.all(5),
-            child: Center(
-              child: Text(
-                DateTime.fromMillisecondsSinceEpoch(day.millisecondsSinceEpoch)
-                    .difference(DateTime.fromMillisecondsSinceEpoch(
-                  viewModel.pregnancyDetails?.startingDay ?? DateTime.now().millisecondsSinceEpoch,
-                ))
-                    .inDays
-                    .toString(),
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-            ),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              shape: BoxShape.circle,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBabyInfoCard(ProfileViewModel viewModel) {
-    return Container(
-      padding: const EdgeInsets.all(25),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(15),
-            width: 70,
-            height: 70,
-            child: SvgPicture.asset(AssetsHelper.maternalImage),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.red.shade100,
-            ),
-          ),
-          Column(
+  Widget _buildSuccessContent() {
+    return LayoutBuilder(
+      builder: (context, constraints) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Baby Weight",
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      Text(
-                        viewModel.pregnancyDetails?.babyWeight?.toString() ??
-                            "N/A",
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: 5.w),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Days Left(approx.)",
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      Text(
-                        (280 -
-                                DateTime.now()
-                                    .difference(DateTime.fromMillisecondsSinceEpoch(
-                                  viewModel.pregnancyDetails?.startingDay ?? DateTime.now().millisecondsSinceEpoch,
-                                ))
-                                    .inDays)
-                            .toString(),
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              SizedBox(height: 2.h),
-              Row(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Baby Height",
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      Text(
-                        viewModel.pregnancyDetails?.babyHeight?.toString() ??
-                            "N/A",
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                    ],
-                  ),
-                  SizedBox(width: 5.w),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Week Left(approx.)",
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      Text(
-                        ((280 -
-                                    DateTime.now()
-                                        .difference(DateTime.fromMillisecondsSinceEpoch(
-                                      viewModel.pregnancyDetails?.startingDay ?? DateTime.now().millisecondsSinceEpoch,
-                                    ))
-                                        .inDays) ~/
-                                7)
-                            .toString(),
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              _PregnancyCalendar(),
+              SizedBox(height: 3.h),
+              _BabyInfoCard(),
+              SizedBox(height: 3.h),
+              _SavedContentSection(type: ContentType.videos),
+              SizedBox(height: 3.h),
+              _SavedContentSection(type: ContentType.articles),
             ],
           ),
-        ],
+        ),
       ),
     );
   }
-
-  Widget _buildSavedVideos(BoxConstraints constraints) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Saved Videos",
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-        SizedBox(
-          height: constraints.maxHeight * 0.3,
-          child: ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: 2,
-            scrollDirection: Axis.horizontal,
-            shrinkWrap: true,
-            itemBuilder: (context, index) {
-              final data = _articleData[index + 3];
-              return SavedVideoCard(
-                image: data['image'],
-              );
-            },
+}
+class _PregnancyCalendar extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Selector<ProfileViewModel, PregnancyDetails?>(
+      selector: (_, vm) => vm.pregnancyDetails,
+      builder: (context, details, _) {
+        final startDate = details?.startDate ?? DateTime.now();
+        return TableCalendar(
+          headerVisible: false,
+          daysOfWeekVisible: false,
+          focusedDay: DateTime.now(),
+          firstDay: startDate,
+          lastDay: startDate.add(const Duration(days: 280)),
+          calendarFormat: CalendarFormat.week,
+          calendarBuilders: CalendarBuilders(
+            todayBuilder: (context, day, _) => _CalendarDay(
+              day: day,
+              startDate: startDate,
+              isToday: true,
+            ),
+            defaultBuilder: (context, day, _) => _CalendarDay(
+              day: day,
+              startDate: startDate,
+              isToday: false,
+            ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSavedArticles(BoxConstraints constraints) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          "Saved Articles",
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-        SizedBox(
-          height: constraints.maxHeight * 0.3,
-          child: ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: 2,
-            scrollDirection: Axis.horizontal,
-            shrinkWrap: true,
-            itemBuilder: (context, index) {
-              final data = _articleData[index];
-              return ArticleCard(
-                image: data['image'],
-              );
-            },
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 }
 
-class SavedVideoCard extends StatelessWidget {
-  final String image;
+class _CalendarDay extends StatelessWidget {
+  final DateTime day;
+  final DateTime startDate;
+  final bool isToday;
 
-  const SavedVideoCard({Key? key, required this.image}) : super(key: key);
+  const _CalendarDay({
+    required this.day,
+    required this.startDate,
+    required this.isToday,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 70.w,
-      child: Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+    final daysDifference = day.difference(startDate).inDays;
+    return Padding(
+      padding: const EdgeInsets.all(2.0),
+      child: Container(
+        padding: const EdgeInsets.all(5),
+        decoration: BoxDecoration(
+          color: isToday ? Colors.pinkAccent : Colors.grey.shade200,
+          shape: BoxShape.circle,
         ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10.0),
-              child: Image.asset(
-                image,
-                height: 30.h,
-                fit: BoxFit.cover,
-              ),
-            ),
-            Card(
-              child: const Icon(Icons.play_arrow_rounded),
-              shape: const CircleBorder(),
-            ),
-          ],
+        child: Center(
+          child: Text(
+            '$daysDifference',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: isToday ? Colors.white : Colors.black87,
+                ),
+          ),
         ),
       ),
     );
   }
 }
 
-class ArticleCard extends StatelessWidget {
-  final String image;
+class _BabyInfoCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Selector<ProfileViewModel, PregnancyDetails?>(
+      selector: (_, vm) => vm.pregnancyDetails,
+      builder: (context, details, _) {
+        return Container(
+          padding: const EdgeInsets.all(25),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.withOpacity(0.1),
+                spreadRadius: 2,
+                blurRadius: 10,
+              )
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _BabyAvatar(),
+              const SizedBox(width: 20),
+              Expanded(child: _BabyMetrics(details: details)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
 
-  const ArticleCard({
-    Key? key,
+class _BabyAvatar extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      width: 70,
+      height: 70,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.red.shade100,
+      ),
+      child: SvgPicture.asset(AssetsHelper.maternalImage),
+    );
+  }
+}
+
+class _BabyMetrics extends StatelessWidget {
+  final PregnancyDetails? details;
+
+  const _BabyMetrics({this.details});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _MetricRow(
+          label: "Baby Weight",
+          value: details?.babyWeight.toStringAsFixed(2) ?? "N/A",
+          unit: "kg",
+        ),
+        SizedBox(height: 2.h),
+        _MetricRow(
+          label: "Baby Height",
+          value: details?.babyHeight.toStringAsFixed(1) ?? "N/A",
+          unit: "cm",
+        ),
+        SizedBox(height: 2.h),
+        _TimeRemainingMetrics(details: details),
+      ],
+    );
+  }
+}
+
+class _MetricRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final String unit;
+
+  const _MetricRow({
+    required this.label,
+    required this.value,
+    required this.unit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: Theme.of(context).textTheme.bodyMedium),
+            Text("$value $unit", style: Theme.of(context).textTheme.bodyLarge),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _TimeRemainingMetrics extends StatelessWidget {
+  final PregnancyDetails? details;
+
+  const _TimeRemainingMetrics({this.details});
+
+  @override
+  Widget build(BuildContext context) {
+    final daysSinceStart = details != null 
+        ? DateTime.now().difference(details!.startDate).inDays
+        : 0;
+    final daysRemaining = 280 - daysSinceStart;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _TimeMetric(
+          label: "Days Left",
+          value: daysRemaining.toString(),
+        ),
+        _TimeMetric(
+          label: "Weeks Left",
+          value: (daysRemaining ~/ 7).toString(),
+        ),
+      ],
+    );
+  }
+}
+
+class _TimeMetric extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _TimeMetric({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.bodyMedium),
+        Text(value, style: Theme.of(context).textTheme.bodyLarge),
+      ],
+    );
+  }
+}
+
+class _SavedContentSection extends StatelessWidget {
+  final ContentType type;
+
+  const _SavedContentSection({required this.type});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          type == ContentType.videos ? "Saved Videos" : "Saved Articles",
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+        SizedBox(
+          height: 30.h,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(8),
+            itemCount: 2,
+            scrollDirection: Axis.horizontal,
+            itemBuilder: (context, index) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: type == ContentType.videos
+                    ? _SavedVideoCard(index: index)
+                    : _SavedArticleCard(index: index),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SavedVideoCard extends StatelessWidget {
+  final int index;
+
+  const _SavedVideoCard({required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    final data = AssetsHelper.articleData[index + 3];
+    return SavedContentCard(
+      image: data['image'],
+      isVideo: true,
+      onTap: () => Navigator.pushNamed(context, NavigationRoutes.video_list),
+    );
+  }
+}
+
+class _SavedArticleCard extends StatelessWidget {
+  final int index;
+
+  const _SavedArticleCard({required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    final data = AssetsHelper.articleData[index];
+    return SavedContentCard(
+      image: data['image'],
+      onTap: () => Navigator.pushNamed(context, NavigationRoutes.articleList),
+    );
+  }
+}
+
+class SavedContentCard extends StatelessWidget {
+  final String image;
+  final bool isVideo;
+  final VoidCallback onTap;
+
+  const SavedContentCard({
+    super.key,
     required this.image,
-  }) : super(key: key);
+    this.isVideo = false,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        Navigator.pushNamed(context, NavigationRoutes.article);
-      },
+      onTap: onTap,
       child: Container(
         width: 70.w,
-        child: Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10.0),
-            child: Image.asset(
-              image,
-              height: 30.h,
-              fit: BoxFit.cover,
-            ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.2),
+              spreadRadius: 2,
+              blurRadius: 10,
+            )
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Image.asset(image, fit: BoxFit.cover, height: 30.h),
+              if (isVideo)
+                const Icon(Icons.play_circle_filled,
+                    size: 40, color: Colors.white),
+            ],
           ),
         ),
       ),
     );
   }
 }
+
+enum ContentType { videos, articles }

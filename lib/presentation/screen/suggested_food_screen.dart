@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:mama_care/presentation/viewmodel/suggested_food_viewmodel.dart';
 
 class SuggestedFoodScreen extends StatelessWidget {
-  const SuggestedFoodScreen({Key? key}) : super(key: key);
+  const SuggestedFoodScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

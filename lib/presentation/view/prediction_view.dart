@@ -5,10 +5,9 @@ import 'package:mama_care/presentation/widgets/custom_button.dart';
 import 'package:mama_care/presentation/widgets/mama_care_app_bar.dart';
 import 'package:sizer/sizer.dart';
 import 'package:mama_care/data/local/database_helper.dart';
-import 'package:mama_care/navigation/router.dart';
 
 class PredictionView extends StatefulWidget {
-  const PredictionView({Key? key}) : super(key: key);
+  const PredictionView({super.key});
 
   @override
   State<PredictionView> createState() => _PredictionViewState();

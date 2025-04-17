@@ -1,209 +1,178 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:injectable/injectable.dart';
-import 'package:mama_care/injection.dart';
-import 'package:mama_care/navigation/router.dart';
-import 'package:sizer/sizer.dart';
-import 'firebase_options.dart';
-import 'package:mama_care/data/local/database_helper.dart';
-import 'package:mama_care/domain/usecases/notification_use_case.dart';
-import 'package:mama_care/presentation/screen/error_screen.dart';
-import 'package:logging/logging.dart';
+// lib/main.dart
 
-final Logger _logger = Logger('Main');
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart'; // Import kReleaseMode
+import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
+import 'package:mama_care/presentation/screen/error_screen.dart'; // Import Splash Screen
+//import 'package:mama_care/presentation/viewmodel/dashboard_viewmodel.dart';
+import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
+import 'package:sizer/sizer.dart';
+
+import 'data/local/database_helper.dart';
+import 'domain/usecases/notification_use_case.dart';
+import 'firebase_options.dart';
+import 'injection.dart';
+import 'navigation/navigation_service.dart';
+import 'navigation/router.dart';
+import 'presentation/viewmodel/auth_viewmodel.dart';
+import 'presentation/viewmodel/doctor_dashboard_viewmodel.dart';
+import 'utils/app_theme.dart';
+import 'package:sqflite/sqflite.dart' as sqflite;
+import 'package:device_preview/device_preview.dart'; // <-- Import Device Preview
+import 'package:intl/date_symbol_data_local.dart'; // Import for locale data init
+
+// Use locator to get the logger instance configured via DI
+final Logger _logger = locator<Logger>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  _setupLogging();
-
   try {
-    _logger.info('Initializing Firebase...');
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    await _initializeApplication();
 
-    _logger.info('Configuring dependencies...');
-    await configureDependencies();
-
-    _logger.info('Initializing database...');
-    final databaseHelper = locator<DatabaseHelper>();
-    await databaseHelper.database;
-    await _ensureInitialData(databaseHelper);
-
-    _logger.info('Initializing notifications...');
-    final notificationUseCase = locator<NotificationUseCase>();
-    await notificationUseCase.initializeNotifications();
-
-    _logger.info('Starting MyApp...');
-    runApp(const MyApp());
-  } catch (e, stackTrace) {
-    _logger.severe('Initialization failed', e, stackTrace);
+    // --- Wrap the app with DevicePreview ---
+    // Enable it only in debug mode (kDebugMode)
     runApp(
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: Text('Initialization failed: $e'),
-          ),
-        ),
+      DevicePreview(
+        enabled: !kReleaseMode, // Enable only in debug/profile mode
+        builder: (context) => const MamaCareApp(), // Wrap your app
       ),
     );
+    // -------------------------------------
+  } catch (error, stackTrace) {
+    final initLogger = Logger(printer: PrettyPrinter());
+    initLogger.f(
+      'Application initialization failed fatally.',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    // Don't wrap ErrorApp in DevicePreview
+    runApp(ErrorApp(error: error, stackTrace: stackTrace));
   }
 }
 
-void _setupLogging() {
-  Logger.root.level = Level.ALL;
-  Logger.root.onRecord.listen((record) {
-    print('${record.level.name}: ${record.time}: ${record.message}');
-    if (record.error != null) {
-      print('Error: ${record.error}');
-    }
-    if (record.stackTrace != null) {
-      print('Stack Trace: ${record.stackTrace}');
-    }
-  });
+Future<void> _initializeApplication() async {
+  // Initialize Intl data (Needed if using DevicePreview locales)
+  await initializeDateFormatting(); // Initialize default locale data
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  Logger(printer: SimplePrinter()).i('Firebase initialized successfully.');
+  await configureDependencies();
+  _logger.i('Dependency Injection configured.');
+  await _initializeDatabase();
+  await _setupNotifications();
+  _logger.i('Application initialization complete.');
 }
 
-Future<void> _ensureInitialData(DatabaseHelper databaseHelper) async {
-  final isOnboardingCompleted = await databaseHelper.isOnboardingCompleted();
-  if (!isOnboardingCompleted) {
-    await databaseHelper.setOnboardingCompleted(false);
+Future<void> _initializeDatabase() async {
+  // ... (implementation remains the same) ...
+  try {
+    final databaseHelper = locator<DatabaseHelper>();
+    await databaseHelper.database;
+    await databaseHelper.transaction((txn) async {
+      await txn.insert('preferences', {
+        'key': 'onboarding_completed',
+        'value': '0',
+      }, conflictAlgorithm: sqflite.ConflictAlgorithm.ignore);
+      await txn.insert('preferences', {
+        'key': 'theme',
+        'value': 'system',
+      }, conflictAlgorithm: sqflite.ConflictAlgorithm.ignore);
+    });
+    await databaseHelper.performMaintenance();
+    _logger.i('Database initialized and initial preferences set.');
+  } catch (e, stackTrace) {
+    _logger.e(
+      'Database initialization failed',
+      error: e,
+      stackTrace: stackTrace,
+    );
+    throw Exception('Failed to initialize database: ${e.toString()}');
   }
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+Future<void> _setupNotifications() async {
+  try {
+    await locator<NotificationUseCase>().initialize();
+    _logger.i('Notifications initialized successfully.');
+  } catch (e, stackTrace) {
+    _logger.w('Notification setup failed', error: e, stackTrace: stackTrace);
+  }
+}
+
+// Main Application Widget
+class MamaCareApp extends StatelessWidget {
+  const MamaCareApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Sizer(
-      builder: (context, orientation, deviceType) {
-        return FutureBuilder<Map<String, bool>>(
-          future: _getAppInitialState(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              _logger.info('Loading...');
-              return _buildLoadingApp();
-            }
-
-            if (snapshot.hasError) {
-              _logger.severe('Error loading app state', snapshot.error);
-              return _buildErrorApp(snapshot.error.toString());
-            }
-
-            final initialRoute = _determineInitialRoute(snapshot.data ?? {
-              'isOnboardingCompleted': false,
-              'isLoggedIn': false,
-            });
-
-            _logger.info('Initial route determined: $initialRoute');
-            return _buildMainApp(initialRoute);
-          },
-        );
-      },
-    );
-  }
-
-  Future<Map<String, bool>> _getAppInitialState() async {
-    try {
-      final databaseHelper = locator<DatabaseHelper>();
-      return {
-        'isOnboardingCompleted': await databaseHelper.isOnboardingCompleted(),
-        'isLoggedIn': await databaseHelper.isLoggedIn(),
-      };
-    } catch (e, stackTrace) {
-      _logger.severe('Failed to get app initial state', e, stackTrace);
-      return {
-        'isOnboardingCompleted': false,
-        'isLoggedIn': false,
-      };
-    }
-  }
-
-  String _determineInitialRoute(Map<String, bool> appState) {
-    final isOnboardingCompleted = appState['isOnboardingCompleted'] ?? false;
-    final isLoggedIn = appState['isLoggedIn'] ?? false;
-
-    if (!isOnboardingCompleted) return NavigationRoutes.onboarding;
-    return isLoggedIn ? NavigationRoutes.mainScreen : NavigationRoutes.login;
-  }
-
-  Widget _buildLoadingApp() {
-    return MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircularProgressIndicator(),
-              SizedBox(height: 2.h),
-              Text(
-                'Loading MAMA CARE...',
-                style: TextStyle(fontSize: 12.sp),
-              ),
-            ],
-          ),
-        ),
+    return MultiProvider(
+      providers: _buildProviders(),
+      child: Sizer(
+        builder: (context, orientation, deviceType) {
+          return MaterialApp(
+            // --- DevicePreview Integration ---
+            locale: DevicePreview.locale(
+              context,
+            ), // Use locale from DevicePreview
+            builder: DevicePreview.appBuilder, // Use builder from DevicePreview
+            // ---------------------------------
+            useInheritedMediaQuery: true, // Important for DevicePreview
+            debugShowCheckedModeBanner: false,
+            title: 'MamaCare',
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: ThemeMode.system, // Keep or make dynamic later
+            navigatorKey: NavigationService.navigatorKey,
+            initialRoute: NavigationRoutes.splash, // Start with Splash
+            onGenerateRoute: RouteGenerator.generateRoute,
+            onUnknownRoute:
+                (settings) => MaterialPageRoute(
+                  builder:
+                      (_) => NotFoundScreen(
+                        errorMessage: 'Route Not Found',
+                        errorDetails: 'No route defined for ${settings.name}',
+                      ),
+                ),
+          );
+        },
       ),
     );
   }
 
-  Widget _buildErrorApp(String error) {
-    return MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text(
-            'Initialization error: $error',
-            style: TextStyle(fontSize: 12.sp, color: Colors.red),
-          ),
-        ),
+  // --- Provider Setup ---
+  List<SingleChildWidget> _buildProviders() {
+    return [
+      ChangeNotifierProvider<AuthViewModel>(
+        create: (_) => locator<AuthViewModel>(),
       ),
-    );
+    ChangeNotifierProvider<DoctorDashboardViewModel>(
+    create: (_) => locator<DoctorDashboardViewModel>(),),
+    ];
   }
+}
 
-  Widget _buildMainApp(String initialRoute) {
+// --- Initialization Error App Widget ---
+class ErrorApp extends StatelessWidget {
+  final dynamic error;
+  final StackTrace? stackTrace;
+  const ErrorApp({super.key, required this.error, this.stackTrace});
+
+  @override
+  Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'MAMA CARE',
-      initialRoute: initialRoute,
-      onGenerateRoute: (settings) {
-        try {
-          _logger.info('Generating route for: ${settings.name}');
-          final route = RouteGenerator.generateRoute(settings);
-          // Remove the null check here - route is properly handled in RouteGenerator
-          return route;
-        } catch (e, stackTrace) {
-          _logger.severe('Route generation failed', e, stackTrace);
-          return MaterialPageRoute(
-            builder: (_) => NotFoundScreen(
-              errorMessage: 'Route generation failed: ${e.toString()}',
-            ),
-          );
-        }
-      },
-      theme: ThemeData(
-        primarySwatch: Colors.pink,
-        scaffoldBackgroundColor: Colors.grey.shade50,
-        textTheme: TextTheme(
-          headlineLarge: TextStyle(
-            fontFamily: 'ProductSans',
-            fontWeight: FontWeight.bold,
-            fontSize: 26.sp,
-          ),
-          headlineMedium: TextStyle(
-            fontFamily: 'ProductSans',
-            fontSize: 20.sp,
-          ),
-          bodyLarge: TextStyle(
-            fontFamily: 'ProductSans',
-            fontSize: 12.sp,
-          ),
-          bodyMedium: TextStyle(
-            fontFamily: 'ProductSans',
-            fontSize: 10.sp,
-          ),
-          bodySmall: GoogleFonts.inter(),
+      home: Scaffold(
+        body: NotFoundScreen(
+          errorMessage: 'Application Initialization Failed',
+          errorDetails: '$error\n\n${stackTrace ?? ''}',
+          onRetry: () {
+            Logger(
+              printer: SimplePrinter(),
+            ).w('Retrying application initialization...');
+            main(); // Call main() to restart the process
+          },
         ),
       ),
     );

@@ -6,7 +6,7 @@ import 'package:mama_care/utils/asset_helper.dart';
 import 'package:mama_care/presentation/widgets/mama_care_app_bar.dart';
 
 class ArticleView extends StatelessWidget {
-  const ArticleView({Key? key}) : super(key: key);
+  const ArticleView({super.key});
 
   @override
   Widget build(BuildContext context) {

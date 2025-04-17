@@ -1,20 +1,13 @@
-import 'dart:math';
 
-import 'package:carousel_slider/carousel_slider.dart';
-import 'package:carousel_slider/carousel_controller.dart';
 import 'package:flutter/material.dart';
-import 'package:mama_care/navigation/router.dart';
-import 'package:mama_care/presentation/widgets/custom_button.dart';
-import 'package:sizer/sizer.dart';
-import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:provider/provider.dart';
 import 'package:mama_care/presentation/viewmodel/onboarding_viewmodel.dart';
 
 import '../../../domain/entities/onboarding_entities.dart';
-import 'OnboardingStack.dart';
 
 class OnBoardingPage extends StatefulWidget {
-  const OnBoardingPage({Key? key}) : super(key: key);
+  const OnBoardingPage({super.key});
+  
 
   @override
   _OnBoardingPageState createState() => _OnBoardingPageState();

@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
 import 'package:mama_care/presentation/viewmodel/video_list_viewmodel.dart';
-import 'package:mama_care/utils/asset_helper.dart';
 import 'package:mama_care/navigation/router.dart';
 import 'package:mama_care/presentation/widgets/mama_care_app_bar.dart';
 
 class VideoListView extends StatefulWidget {
-  const VideoListView({Key? key}) : super(key: key);
+  const VideoListView({super.key});
 
   @override
   State<VideoListView> createState() => _VideoListViewState();
@@ -56,12 +55,12 @@ class VideoListCard extends StatelessWidget {
   final int index;
 
   const VideoListCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.detail,
     required this.image,
     required this.index,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -94,12 +93,12 @@ class VideoListCard extends StatelessWidget {
                       ),
                     ),
                     const Card(
+                      shape: CircleBorder(),
                       child: Icon(
                         Icons.play_arrow_rounded,
                         size: 50,
                         color: Colors.pinkAccent,
                       ),
-                      shape: CircleBorder(),
                     ),
                   ],
                 ),

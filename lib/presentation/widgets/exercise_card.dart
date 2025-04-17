@@ -14,7 +14,7 @@ class ExerciseCard extends StatelessWidget {
   final double imageBorderRadius;
 
   const ExerciseCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.description,
     required this.image,
@@ -25,7 +25,7 @@ class ExerciseCard extends StatelessWidget {
     this.descriptionStyle,
     this.imageSize = 80,
     this.imageBorderRadius = 10.0,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

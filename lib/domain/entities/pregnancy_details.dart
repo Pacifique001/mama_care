@@ -1,20 +1,25 @@
-import 'package:flutter/cupertino.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:equatable/equatable.dart';
 
 part 'pregnancy_details.g.dart';
 
-@JsonSerializable()
-class PregnancyDetails {
+@JsonSerializable(explicitToJson: true)
+class PregnancyDetails extends Equatable {
   final String? userId;
-  final int? startingDay; // Store as milliseconds since epoch
-  final int? weeksPregnant;
-  final int? daysPregnant;
-  final double? babyHeight;
-  final double? babyWeight;
-  final DateTime? dueDate;
+  final int startingDay;
+  final int weeksPregnant;
+  final int daysPregnant;
+  final double babyHeight;
+  final double babyWeight;
+  
+  @JsonKey(
+    name: 'dueDate',
+    fromJson: _fromJsonDate,
+    toJson: _toJsonDate,
+  )
+  final DateTime dueDate;
 
-  PregnancyDetails({
+  const PregnancyDetails({
     required this.userId,
     required this.startingDay,
     required this.weeksPregnant,
@@ -24,27 +29,55 @@ class PregnancyDetails {
     required this.dueDate,
   });
 
-  factory PregnancyDetails.fromJson(Map<String, dynamic> json) {
+  // Date conversion methods
+  static DateTime _fromJsonDate(int milliseconds) => 
+      DateTime.fromMillisecondsSinceEpoch(milliseconds);
+      
+  static int _toJsonDate(DateTime date) => date.millisecondsSinceEpoch;
+
+  // Calculated properties
+  DateTime get startDate => DateTime.fromMillisecondsSinceEpoch(startingDay);
+  int get currentWeek => weeksPregnant;
+  int get totalDaysPregnant => daysPregnant + (weeksPregnant * 7);
+  DateTime get estimatedConceptionDate => dueDate.subtract(const Duration(days: 280));
+
+  // JSON Serialization
+  factory PregnancyDetails.fromJson(Map<String, dynamic> json) => 
+      _$PregnancyDetailsFromJson(json);
+
+  Map<String, dynamic> toJson(userId) => _$PregnancyDetailsToJson(this);
+
+  // Copy with method
+  PregnancyDetails copyWith({
+    String? userId,
+    int? startingDay,
+    int? weeksPregnant,
+    int? daysPregnant,
+    double? babyHeight,
+    double? babyWeight,
+    DateTime? dueDate,
+  }) {
     return PregnancyDetails(
-      userId: json['userId'],
-      startingDay: json['startingDay'],
-      weeksPregnant: json['weeksPregnant'],
-      daysPregnant: json['daysPregnant'],
-      babyHeight: json['babyHeight'],
-      babyWeight: json['babyWeight'],
-      dueDate: DateTime.parse(json['dueDate']),
+      userId: userId ?? this.userId,
+      startingDay: startingDay ?? this.startingDay,
+      weeksPregnant: weeksPregnant ?? this.weeksPregnant,
+      daysPregnant: daysPregnant ?? this.daysPregnant,
+      babyHeight: babyHeight ?? this.babyHeight,
+      babyWeight: babyWeight ?? this.babyWeight,
+      dueDate: dueDate ?? this.dueDate,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'userId': userId,
-      'startingDay': startingDay,
-      'weeksPregnant': weeksPregnant,
-      'daysPregnant': daysPregnant,
-      'babyHeight': babyHeight,
-      'babyWeight': babyWeight,
-      'dueDate': dueDate?.toIso8601String(),
-    };
-  }
+  @override
+  List<Object?> get props => [
+    userId,
+    startingDay,
+    weeksPregnant,
+    daysPregnant,
+    babyHeight,
+    babyWeight,
+    dueDate,
+  ];
+
+  get daysRemaining => null;
 }

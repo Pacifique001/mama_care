@@ -1,20 +1,14 @@
-import 'dart:math';
 
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:carousel_slider/carousel_controller.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:mama_care/presentation/viewmodel/pregnancy_detail_viewmodel.dart';
-import 'package:mama_care/presentation/widgets/custom_text_field.dart';
 import 'package:mama_care/utils/asset_helper.dart';
 import 'package:sizer/sizer.dart';
 
-import '../../navigation/router.dart';
-import '../widgets/mama_care_app_bar.dart';
 
 class PregnancyDetailView extends StatefulWidget {
-  const PregnancyDetailView({Key? key}) : super(key: key);
+  const PregnancyDetailView({super.key});
 
   @override
   State<PregnancyDetailView> createState() => _PregnancyDetailViewState();
@@ -205,7 +199,7 @@ class _PregnancyDetailViewState extends State<PregnancyDetailView> {
 }
 
 class BabyWeight extends StatelessWidget {
-  BabyWeight({Key? key, required this.controller}) : super(key: key);
+  BabyWeight({super.key, required this.controller});
   TextEditingController controller;
 
   @override
@@ -247,7 +241,7 @@ class BabyWeight extends StatelessWidget {
 }
 
 class BabyHeight extends StatelessWidget {
-  BabyHeight({Key? key, required this.controller}) : super(key: key);
+  BabyHeight({super.key, required this.controller});
   TextEditingController controller;
 
   @override
@@ -289,7 +283,7 @@ class BabyHeight extends StatelessWidget {
 }
 
 class CalendarDatePickerSlide extends StatefulWidget {
-  const CalendarDatePickerSlide({Key? key}) : super(key: key);
+  const CalendarDatePickerSlide({super.key});
 
   @override
   State<CalendarDatePickerSlide> createState() =>

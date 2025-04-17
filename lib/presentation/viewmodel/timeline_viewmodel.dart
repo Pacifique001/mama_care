@@ -11,20 +11,15 @@ class TimelineViewModel extends ChangeNotifier {
     required TimelineUseCase timelineUseCase,
     required DatabaseHelper databaseHelper,
   })  : _timelineUseCase = timelineUseCase,
-        _databaseHelper = databaseHelper;
+        _databaseHelper = databaseHelper {
+    initialize();
+  }
 
   PregnancyDetails? _pregnancyDetails;
   bool _isLoading = false;
   String? _errorMessage;
 
-  String? _userId;
-  int? _startingDay;
-  int? _weeksPregnant;
-  int? _daysPregnant;
-  double? _babyHeight;
-  double? _babyWeight;
-  DateTime? _dueDate;
-
+  // Pregnancy timeline data
   final List<List<String>> weeks = [
     ['Week 1', 'Your body is preparing for ovulation. The menstrual cycle begins, counting towards your estimated due date.'],
     ['Week 2', 'Ovulation occurs, and conception may happen during this period.'],
@@ -68,10 +63,73 @@ class TimelineViewModel extends ChangeNotifier {
     ['Week 40', 'Your baby is ready for birth!'],
   ];
 
+  // Current pregnancy state
+  DateTime _dueDate = DateTime.now().add(const Duration(days: 280));
+  int _weeksPregnant = 0;
+  int _daysPregnant = 0;
+  final double _babyHeight = 0.0;
+  final double _babyWeight = 0.0;
+
   // Getters
-  PregnancyDetails? get pregnancyDetails => _pregnancyDetails;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  int get weeksPregnant => _weeksPregnant;
+  int get daysPregnant => _daysPregnant;
+  DateTime get dueDate => _dueDate;
+
+  void initialize() {
+    _calculateCurrentProgress();
+  }
+
+  Future<void> fetchPregnancyDetails() async {
+    try {
+      _updateState(isLoading: true, errorMessage: null);
+      
+      final details = await _timelineUseCase.getPregnancyDetails();
+      if (details != null) {
+        _updateFromDetails(details);
+        await _cacheLocally(details);
+      }
+    } catch (e) {
+      _handleError('Failed to fetch details: ${e.toString()}');
+    } finally {
+      _updateState(isLoading: false);
+    }
+  }
+
+  void updateDueDate(DateTime newDate) {
+    if (newDate.isBefore(DateTime.now())) return;
+    
+    _dueDate = newDate;
+    _calculateCurrentProgress();
+    notifyListeners();
+  }
+
+  String getWeekDescription(int weekNumber) {
+    if (weekNumber < 1 || weekNumber > weeks.length) return '';
+    return weeks[weekNumber - 1][1];
+  }
+
+  // Core calculation logic
+  void _calculateCurrentProgress() {
+    final lmpDate = _dueDate.subtract(const Duration(days: 280));
+    final pregnancyDuration = DateTime.now().difference(lmpDate);
+    
+    _weeksPregnant = (pregnancyDuration.inDays ~/ 7) + 1;
+    _daysPregnant = pregnancyDuration.inDays % 7;
+
+    // Clamp values to valid range
+    _weeksPregnant = _weeksPregnant.clamp(0, weeks.length);
+    _daysPregnant = _daysPregnant.clamp(0, 6);
+
+    notifyListeners();
+  }
+
+  // Private methods
+  void _updateFromDetails(PregnancyDetails details) {
+    _dueDate = details.dueDate;
+    _calculateCurrentProgress();
+  }
 
   void _updateState({bool? isLoading, String? errorMessage}) {
     if (isLoading != null) _isLoading = isLoading;
@@ -79,76 +137,19 @@ class TimelineViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchPregnancyDetails() async {
-    try {
-      _updateState(isLoading: true, errorMessage: null);
-
-      final details = await _timelineUseCase.getPregnancyDetails();
-      if (details != null) {
-        _pregnancyDetails = details;
-
-        try {
-          await _databaseHelper.insertPregnancyDetail({
-            'startingDay': details.startingDay,
-            'weeksPregnant': details.weeksPregnant,
-            'babyHeight': details.babyHeight,
-            'babyWeight': details.babyWeight,
-          });
-        } catch (dbError) {
-          _errorMessage = "Database error: Could not save data.";
-        }
-      } else {
-        _errorMessage = "No pregnancy details found.";
-      }
-    } catch (e) {
-      _errorMessage = "Failed to fetch pregnancy details. Please try again.";
-    } finally {
-      _updateState(isLoading: false);
-    }
+  void _handleError(String message) {
+    _errorMessage = message;
+    _updateState(isLoading: false);
+    debugPrint(message);
   }
 
-  String? getWeekDescription(int weekNumber) {
-    if (weekNumber < 1 || weekNumber > weeks.length) return null;
-    return weeks[weekNumber - 1][1];
+  Future<void> _cacheLocally(PregnancyDetails details) async {
+  try {
+    await _databaseHelper.upsertPregnancyDetail(
+      details.toJson(details),
+    );
+  } catch (e) {
+    debugPrint('Local cache error: $e');
   }
-
-  bool isWeekInfoAvailable(int weekNumber) {
-    return weekNumber >= 1 && weekNumber <= weeks.length;
-  }
-
-  Future<void> savePregnancyDetails() async {
-    try {
-      final details = PregnancyDetails(
-        userId: _userId,
-        startingDay: _startingDay,
-        weeksPregnant: _weeksPregnant,
-        daysPregnant: _daysPregnant,
-        babyHeight: _babyHeight,
-        babyWeight: _babyWeight,
-        dueDate: _dueDate,
-      );
-      await _databaseHelper.insert('pregnancy_details', details.toJson());
-    } catch (e) {
-      _errorMessage = 'Failed to save pregnancy details: ${e.toString()}';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> getPregnancyDetails() async {
-    // Call the use case to fetch pregnancy details
-    final details = await _timelineUseCase.getPregnancyDetails();
-    if (details != null) {
-      // Update your state with the fetched details
-      _userId = details.userId;
-      _startingDay = details.startingDay;
-      _weeksPregnant = details.weeksPregnant;
-      _daysPregnant = details.daysPregnant;
-      _babyHeight = details.babyHeight;
-      _babyWeight = details.babyWeight;
-      _dueDate = details.dueDate;
-      notifyListeners();
-    }
-  }
+   }
 }

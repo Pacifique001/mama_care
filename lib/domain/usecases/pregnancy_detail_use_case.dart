@@ -1,4 +1,3 @@
-import 'dart:ffi';
 
 import 'package:injectable/injectable.dart';
 import 'package:mama_care/data/repositories/pregnancy_detail_repository.dart';
@@ -10,9 +9,9 @@ class PregnancyDetailUseCase {
 
   PregnancyDetailUseCase(this._pregnancyDetailRepository);
 
-  Future<PregnancyDetails?> getPregnancyDetails() async {
+  Future<PregnancyDetails?> getPregnancyDetails(String userId) async {
     try {
-      return await _pregnancyDetailRepository.getPregnancyDetails();
+      return await _pregnancyDetailRepository.getPregnancyDetails(userId);
     } catch (e) {
       print("Error fetching pregnancy details: $e");
       return null;

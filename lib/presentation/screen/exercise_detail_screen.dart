@@ -7,11 +7,11 @@ class ExerciseDetailPage extends StatelessWidget {
   final String image;
 
   const ExerciseDetailPage({
-    Key? key,
+    super.key,
     required this.title,
     required this.description,
     required this.image,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

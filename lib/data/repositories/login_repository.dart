@@ -1,5 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:mama_care/data/local/database_helper.dart';
 import 'package:injectable/injectable.dart';
 
 @factoryMethod
@@ -23,7 +22,7 @@ abstract class LoginRepository {
   Future<bool> verifyEmailOTP(String email, String otp);
 
   // Google login
-  Future<UserCredential> googleLogin();
+  Future<UserCredential?> googleLogin();
 
   // Logout
   Future<void> logout();

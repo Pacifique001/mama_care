@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 
 import '../../utils/asset_helper.dart';
 
@@ -19,22 +18,22 @@ class OnboardingEntity {
 
 final List<OnboardingEntity> mainOnboardings = [
   OnboardingEntity(
-    image: AssetsHelper.onboardingImage1,
+    image: AssetsHelper.walking,
     title: 'Welcome to MamaCare',
     description: 'Your trusted companion for maternal health and wellness.',
   ),
   OnboardingEntity(
-    image: AssetsHelper.onboardingImage2,
+    image: AssetsHelper.swimming,
     title: 'Track Your Progress',
     description: 'Monitor your pregnancy journey with ease and confidence.',
   ),
   OnboardingEntity(
-    image: AssetsHelper.onboardingImage3,
+    image: AssetsHelper.yoga,
     title: 'Educational Resources',
     description: 'Access articles, videos, and podcasts to stay informed.',
   ),
   OnboardingEntity(
-    image: AssetsHelper.onboardingImage4,
+    image: AssetsHelper.dancing,
     title: 'Community Support',
     description: 'Connect with other moms and share your experiences.',
   ),

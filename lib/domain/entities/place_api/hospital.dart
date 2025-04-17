@@ -1,6 +1,4 @@
 import 'package:json_annotation/json_annotation.dart';
-import 'package:mama_care/domain/entities/place_api/result.dart';
-import 'package:mama_care/domain/entities/place_api/location.dart';
 
 part 'hospital.g.dart';
 

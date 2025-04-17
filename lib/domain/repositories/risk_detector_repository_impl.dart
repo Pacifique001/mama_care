@@ -1,7 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:injectable/injectable.dart';
 import 'package:mama_care/data/repositories/risk_detector_repository.dart';
-import 'package:mama_care/utils/asset_helper.dart';
 import 'package:mama_care/data/local/database_helper.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:mama_care/domain/entities/risk_assessment_model.dart';

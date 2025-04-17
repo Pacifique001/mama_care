@@ -8,7 +8,7 @@ import 'package:mama_care/data/local/database_helper.dart';
 
 
 class TimelineScreen extends StatelessWidget {
-  const TimelineScreen({Key? key}) : super(key: key);
+  const TimelineScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

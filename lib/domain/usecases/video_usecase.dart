@@ -19,7 +19,7 @@ class VideoUseCase {
   }
 
   // Get video by ID
-  Future<VideoModel> getVideoById(String id) async {
+  Future<VideoModel?> getVideoById(String id) async {
     return await _repository.getVideoById(id);
   }
 

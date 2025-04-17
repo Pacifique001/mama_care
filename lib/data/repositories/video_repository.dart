@@ -5,7 +5,7 @@ import 'package:injectable/injectable.dart';
 abstract class VideoRepository {
   Future<List<VideoModel>> getVideos();
   Future<List<VideoModel>> searchVideos(String query);
-  Future<VideoModel> getVideoById(String id);
+  Future<VideoModel?> getVideoById(String id);
   Future<VideoModel> toggleFavorite(VideoModel video);
   Future<List<VideoModel>> getFavoriteVideos();
   Future<List<VideoModel>> getRecommendedVideos();

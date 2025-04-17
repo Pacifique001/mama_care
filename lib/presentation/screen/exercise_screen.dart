@@ -5,7 +5,7 @@ import 'package:mama_care/presentation/screen/exercise_detail_screen.dart';
 import '../widgets/exercise_card.dart';
 
 class ExerciseScreen extends StatefulWidget {
-  const ExerciseScreen({Key? key}) : super(key: key);
+  const ExerciseScreen({super.key});
 
   @override
   _ExerciseScreenState createState() => _ExerciseScreenState();
@@ -37,7 +37,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       'title': 'Strength training',
       'description':
           'Strength training with light weights or resistance bands can help maintain muscle tone and prepare the body for the physical demands of pregnancy.',
-      'image': AssetsHelper.strength_training,
+      'image': AssetsHelper.strengthTraining,
     },
     {
       'title': 'Stretching',

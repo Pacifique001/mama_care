@@ -7,7 +7,7 @@ import 'package:mama_care/data/local/database_helper.dart';
 import 'package:mama_care/injection.dart';
 
 class VideoListScreen extends StatelessWidget {
-  const VideoListScreen({Key? key}) : super(key: key);
+  const VideoListScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

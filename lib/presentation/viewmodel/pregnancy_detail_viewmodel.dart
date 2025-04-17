@@ -1,4 +1,3 @@
-import 'dart:ffi';
 
 import 'package:flutter/cupertino.dart';
 import 'package:mama_care/domain/usecases/pregnancy_detail_use_case.dart';
@@ -49,7 +48,7 @@ class PregnancyDetailViewModel extends ChangeNotifier {
           dueDate: DateTime.now(), // Ensure this is included
         );
         await _pregnancyDetailUseCase.addPregnancyDetail(details);
-        await _databaseHelper.insert('pregnancy_details', details.toJson());
+        await _databaseHelper.insert('pregnancy_details', details.toJson(details));
       }
     } catch (e) {
       setErrorMessage("Failed to add pregnancy details. Please try again.");

@@ -1,27 +1,23 @@
 import 'dart:async';
-import 'dart:ffi';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:mama_care/presentation/viewmodel/hospital_viewmodel.dart';
 import 'package:mama_care/presentation/widgets/custom_text_field.dart';
 import 'package:mama_care/presentation/widgets/mama_care_app_bar.dart';
-import 'package:sizer/sizer.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HospitalView extends StatefulWidget {
-  const HospitalView({Key? key}) : super(key: key);
+  const HospitalView({super.key});
 
   @override
   State<HospitalView> createState() => _HospitalViewState();
 }
 
 class _HospitalViewState extends State<HospitalView> {
-  Completer<GoogleMapController> _controller = Completer();
-  Set<Marker> _markers = {};
+  final Completer<GoogleMapController> _controller = Completer();
+  final Set<Marker> _markers = {};
 
   static const CameraPosition _kGooglePlex = CameraPosition(
     target: LatLng(37.42796133580664, -122.085749655962),
@@ -33,7 +29,7 @@ class _HospitalViewState extends State<HospitalView> {
     super.initState();
     final hospitalViewModel =
         Provider.of<HospitalViewModel>(context, listen: false);
-    hospitalViewModel.getUserCurrentLocation();
+    hospitalViewModel.findUserAndNearbyHospitals();
   }
 
   Future<void> _launchInBrowser(Uri url) async {
@@ -109,7 +105,7 @@ class _HospitalViewState extends State<HospitalView> {
 
                               final GoogleMapController controller = await _controller.future;
                               controller.animateCamera(CameraUpdate.newCameraPosition(cameraPosition));
-                              hospitalViewModel.getHospitalList();
+                              hospitalViewModel.findUserAndNearbyHospitals();
                               setState(() {});
                             }
                           },
@@ -138,9 +134,9 @@ class _HospitalViewState extends State<HospitalView> {
 
   Widget _buildHospitalList(HospitalViewModel hospitalViewModel) {
     return ListView.builder(
-      itemCount: hospitalViewModel.hospital?.results.length ?? 0,
+      itemCount: hospitalViewModel.selectedHospital?.results.length ?? 0,
       itemBuilder: (context, index) {
-        final hospital = hospitalViewModel.hospital?.results[index];
+        final hospital = hospitalViewModel.selectedHospital?.results[index];
         return ListTile(
           title: Text(hospital?.name ?? ''),
           subtitle: Text(hospital?.address ?? ''),

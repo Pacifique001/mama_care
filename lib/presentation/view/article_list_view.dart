@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:sizer/sizer.dart';
-import 'package:mama_care/presentation/screen/article_screen.dart';
 import 'package:mama_care/presentation/viewmodel/article_list_viewmodel.dart';
 import '../widgets/mama_care_app_bar.dart';
-import 'package:mama_care/utils/asset_helper.dart';
 import 'package:mama_care/navigation/router.dart';
 
 class ArticleListView extends StatefulWidget {
-  const ArticleListView({Key? key}) : super(key: key);
+  const ArticleListView({super.key});
 
   @override
   State<ArticleListView> createState() => _ArticleListViewState();
@@ -56,12 +54,12 @@ class ArticleListCard extends StatelessWidget {
   final int index;
 
   const ArticleListCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.detail,
     required this.image,
     required this.index,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

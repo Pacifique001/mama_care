@@ -2,43 +2,78 @@ import 'package:flutter/material.dart';
 
 class CustomButton extends StatelessWidget {
   final String label;
-  final VoidCallback onPressed;
-  final Color color;
-  final Color textColor;
+  final VoidCallback? onPressed;
+  final Future<void> Function()? onAsyncPressed; // Changed from AsyncCallback
+  final Color? color;
+  final Color? textColor;
   final double borderRadius;
-  final EdgeInsetsGeometry padding;
-  final double elevation;
+  final Color?   backgroundColor ;
+  final EdgeInsetsGeometry? padding;
+  final double? elevation;
+  final TextStyle? textStyle;
+  final bool isLoading;
+  final double? loadingIndicatorSize;
+  final double? loadingIndicatorStrokeWidth;
 
   const CustomButton({
-    Key? key,
+    super.key,
     required this.label,
-    required this.onPressed,
-    required this.color,
-    this.textColor = Colors.white,
-    this.borderRadius = 16.0,
-    this.padding = const EdgeInsets.symmetric(vertical: 16.0),
-    this.elevation = 0,
-  }) : super(key: key);
+    this.onPressed,
+    this.backgroundColor,
+    this.onAsyncPressed,
+    this.color,
+    this.textColor,
+    this.borderRadius = 8.0,
+    this.padding,
+    this.elevation,
+    this.textStyle,
+    this.isLoading = false,
+    this.loadingIndicatorSize = 20,
+    this.loadingIndicatorStrokeWidth = 2,
+  });
 
   @override
   Widget build(BuildContext context) {
     return ElevatedButton(
-      onPressed: onPressed,
+      onPressed: _getOnPressed(),
       style: ElevatedButton.styleFrom(
-        elevation: elevation,
+        backgroundColor: color ?? Theme.of(context).primaryColor,
+        padding: padding ?? const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(borderRadius),
         ),
-        backgroundColor: color,
-        padding: padding,
+        elevation: elevation ?? 0,
       ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: textColor,
-              fontWeight: FontWeight.bold,
-            ),
-      ),
+      child: _buildChild(context),
+    );
+  }
+
+  VoidCallback? _getOnPressed() {
+    if (isLoading) return null;
+    if (onAsyncPressed != null) {
+      return () async => await onAsyncPressed!();
+    }
+    return onPressed;
+  }
+
+  Widget _buildChild(BuildContext context) {
+    if (isLoading) {
+      return SizedBox(
+        height: loadingIndicatorSize,
+        width: loadingIndicatorSize,
+        child: CircularProgressIndicator(
+          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+          strokeWidth: loadingIndicatorStrokeWidth!,
+        ),
+      );
+    }
+    return Text(
+      label,
+      style: textStyle ?? Theme.of(context).textTheme.labelLarge?.copyWith(
+            color: textColor ?? Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
     );
   }
 }

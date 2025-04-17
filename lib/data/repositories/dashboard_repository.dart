@@ -4,6 +4,7 @@ import '../../domain/entities/pregnancy_details.dart';
 
 @factoryMethod
 abstract class DashboardRepository {
-  Future<UserModel?> getUserDetails();
-  Future<PregnancyDetails?> getPregnancyDetails();
+  Future<UserModel?> getUserDetails(String id);
+  Future<PregnancyDetails?> getPregnancyDetails(String id);
+  Future<void> sendNotification(String message);
 }

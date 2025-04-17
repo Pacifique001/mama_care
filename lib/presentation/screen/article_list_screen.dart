@@ -7,7 +7,7 @@ import 'package:mama_care/data/local/database_helper.dart';
 import 'package:mama_care/injection.dart';
 
 class ArticleListScreen extends StatelessWidget {
-  const ArticleListScreen({Key? key}) : super(key: key);
+  const ArticleListScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

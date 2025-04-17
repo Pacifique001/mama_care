@@ -49,7 +49,7 @@ class AssetsHelper {
   static const String place_api_base_url = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json?';
   static const String placePhotoApiBaseUrl = 'https://maps.googleapis.com/maps/api/place/photo?';
   static const String risk_detector_api_base_url = 'https://your-api-url.com/risk-detector?';
-  static const String placeApiKey = 'AIzaSyAuDEtq3GqVkYAE-6nn_5pVNdYTBmg9Dr4';
+  static const String placeApiKey = 'AIzaSyDm3GWNTgTpQ1cm9zIX0i0fwMICWe__R-M';
 
   // Article Data
   static const List<Map<String, dynamic>> articleData = [

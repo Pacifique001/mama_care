@@ -85,7 +85,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
   @override
   Future<void> savePregnancyDetails(PregnancyDetails details) async {
     try {
-      await _databaseHelper.insert('pregnancy_details', details.toJson());
+      await _databaseHelper.insert('pregnancy_details', details.toJson(details));
     } catch (e) {
       throw Exception('Failed to save pregnancy details: ${e.toString()}');
     }

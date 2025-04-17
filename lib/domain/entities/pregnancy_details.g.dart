@@ -9,15 +9,12 @@ part of 'pregnancy_details.dart';
 PregnancyDetails _$PregnancyDetailsFromJson(Map<String, dynamic> json) =>
     PregnancyDetails(
       userId: json['userId'] as String?,
-      startingDay: (json['startingDay'] as num?)?.toInt(),
-      weeksPregnant: (json['weeksPregnant'] as num?)?.toInt(),
-      daysPregnant: (json['daysPregnant'] as num?)?.toInt(),
-      babyHeight: (json['babyHeight'] as num?)?.toDouble(),
-      babyWeight: (json['babyWeight'] as num?)?.toDouble(),
-      dueDate:
-          json['dueDate'] == null
-              ? null
-              : DateTime.parse(json['dueDate'] as String),
+      startingDay: (json['startingDay'] as num).toInt(),
+      weeksPregnant: (json['weeksPregnant'] as num).toInt(),
+      daysPregnant: (json['daysPregnant'] as num).toInt(),
+      babyHeight: (json['babyHeight'] as num).toDouble(),
+      babyWeight: (json['babyWeight'] as num).toDouble(),
+      dueDate: PregnancyDetails._fromJsonDate((json['dueDate'] as num).toInt()),
     );
 
 Map<String, dynamic> _$PregnancyDetailsToJson(PregnancyDetails instance) =>
@@ -28,5 +25,5 @@ Map<String, dynamic> _$PregnancyDetailsToJson(PregnancyDetails instance) =>
       'daysPregnant': instance.daysPregnant,
       'babyHeight': instance.babyHeight,
       'babyWeight': instance.babyWeight,
-      'dueDate': instance.dueDate?.toIso8601String(),
+      'dueDate': PregnancyDetails._toJsonDate(instance.dueDate),
     };

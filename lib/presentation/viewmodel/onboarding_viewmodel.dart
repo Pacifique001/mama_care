@@ -18,7 +18,7 @@ class OnBoardingViewModel extends ChangeNotifier {
 
   // Go to next page
   void nextPage() {
-    if (_currentPage < 2) { // Assuming 3 pages (0, 1, 2)
+    if (_currentPage < 4) { // Assuming 3 pages (0, 1, 2)
       _currentPage++;
       notifyListeners();
     }

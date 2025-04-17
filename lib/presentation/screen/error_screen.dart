@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 
 class NotFoundScreen extends StatelessWidget {
   final String? errorMessage;
-  
+  final String? errorDetails;  // Add this line
+  final VoidCallback? onRetry;
+
   const NotFoundScreen({
-    Key? key,
+    super.key,
     this.errorMessage,
-  }) : super(key: key);
+    this.errorDetails,  // Add this parameter
+    this.onRetry,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -31,22 +35,23 @@ class NotFoundScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              errorMessage == null 
-                ? 'The page you are looking for does not exist.'
-                : 'An error occurred while loading this page.',
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
+            if (errorDetails != null) ...[  // Add this conditional block
+              const SizedBox(height: 8),
+              Text(
+                errorDetails!,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
+            ],
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () {
+              onPressed: onRetry ?? () {
                 Navigator.of(context).pushReplacementNamed('/');
               },
-              child: const Text('Go to Home'),
+              child: Text(onRetry != null ? 'Try Again' : 'Go to Home'),
             ),
           ],
         ),

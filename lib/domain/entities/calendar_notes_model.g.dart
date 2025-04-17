@@ -6,20 +6,21 @@ part of 'calendar_notes_model.dart';
 // JsonSerializableGenerator
 // **************************************************************************
 
-CalendarNotesModel _$CalendarNotesModelFromJson(
-  Map<String, dynamic> json,
-) => CalendarNotesModel(
-  date: json['date'] == null ? null : DateTime.parse(json['date'] as String),
-  notes:
-      (json['notes'] as Map<String, dynamic>?)?.map(
-        (k, e) =>
-            MapEntry(k, (e as List<dynamic>).map((e) => e as String).toList()),
-      ) ??
-      const {},
+CalendarNote _$CalendarNoteFromJson(Map<String, dynamic> json) => CalendarNote(
+  id: json['id'] as String?,
+  date: DateTime.parse(json['date'] as String),
+  noteText: json['noteText'] as String,
+  userId: json['userId'] as String,
+  createdAt: DateTime.parse(json['createdAt'] as String),
+  updatedAt: DateTime.parse(json['updatedAt'] as String),
 );
 
-Map<String, dynamic> _$CalendarNotesModelToJson(CalendarNotesModel instance) =>
+Map<String, dynamic> _$CalendarNoteToJson(CalendarNote instance) =>
     <String, dynamic>{
-      'date': instance.date?.toIso8601String(),
-      'notes': instance.notes,
+      'id': instance.id,
+      'date': instance.date.toIso8601String(),
+      'noteText': instance.noteText,
+      'createdAt': instance.createdAt.toIso8601String(),
+      'updatedAt': instance.updatedAt.toIso8601String(),
+      'userId': instance.userId,
     };

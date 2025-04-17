@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class MamaCareAppBar extends StatelessWidget implements PreferredSizeWidget {
   final Widget? leading;
+  final List<Widget>? actions;
   final Widget? trailing;
   final String title;
   final Color? backgroundColor;
@@ -11,10 +12,12 @@ class MamaCareAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<BoxShadow>? shadow;
   final EdgeInsetsGeometry? trailingPadding;
   final Widget? trailingWidget;
+  final bool automaticallyImplyLeading;
 
   const MamaCareAppBar({
     super.key,
     this.leading,
+    this.actions,
     this.trailing,
     required this.title,
     this.backgroundColor = Colors.transparent,
@@ -24,6 +27,7 @@ class MamaCareAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.shadow,
     this.trailingPadding = const EdgeInsets.all(8.0),
     this.trailingWidget,
+    this.automaticallyImplyLeading = true,
   });
 
   @override
@@ -62,7 +66,8 @@ class MamaCareAppBar extends StatelessWidget implements PreferredSizeWidget {
         toolbarTextStyle: textStyle,
         titleTextStyle: textStyle,
         surfaceTintColor: Colors.transparent,
-        automaticallyImplyLeading: leading != null,
+        //automaticallyImplyLeading: leading != null,
+         automaticallyImplyLeading: automaticallyImplyLeading,
       ),
     );
   }
