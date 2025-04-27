@@ -1,35 +1,37 @@
-// lib/presentation/view/otp_verification_view.dart
+// lib/presentation/screen/otp_input_screen.dart
 
 import 'dart:async'; // For Timer
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For FilteringTextInputFormatter
 import 'package:logger/logger.dart';
 import 'package:mama_care/injection.dart'; // Assuming locator for Logger
-import 'package:mama_care/navigation/router.dart'; // For navigation
+// import 'package:mama_care/navigation/router.dart'; // Navigation handled by AuthViewModel listener now
 import 'package:mama_care/presentation/viewmodel/auth_viewmodel.dart'; // Import AuthViewModel
 import 'package:mama_care/presentation/widgets/custom_button.dart';
 import 'package:mama_care/presentation/widgets/mama_care_app_bar.dart'; // Assuming shared AppBar
 import 'package:mama_care/utils/app_colors.dart';
 import 'package:mama_care/utils/text_styles.dart';
-import 'package:mama_care/core/error/exceptions.dart'; // Import custom exceptions
 import 'package:pin_code_fields/pin_code_fields.dart'; // Using package for OTP fields
-import 'package:provider/provider.dart';
-import 'package:flutter/services.dart';
+import 'package:provider/provider.dart'; // Import Provider
 import 'package:sizer/sizer.dart'; // Assuming Sizer is used in TextStyles
 
-class OtpVerificationView extends StatefulWidget {
-  final String? email; // Receive email used for OTP
+class OtpInputScreen extends StatefulWidget {
+  // Only requires the phone number for display purposes.
+  // The verification process state (verificationId, etc.) is managed by AuthViewModel.
+  final String phoneNumber;
 
-  const OtpVerificationView({super.key, this.email});
+  const OtpInputScreen({
+    super.key,
+    required this.phoneNumber,
+  });
 
   @override
-  State<OtpVerificationView> createState() => _OtpVerificationViewState();
+  State<OtpInputScreen> createState() => _OtpInputScreenState();
 }
 
-class _OtpVerificationViewState extends State<OtpVerificationView> {
-  final _formKey = GlobalKey<FormState>(); // Optional form key
+class _OtpInputScreenState extends State<OtpInputScreen> {
   final _otpController = TextEditingController();
   StreamController<ErrorAnimationType>? _errorController;
-
   final Logger _logger = locator<Logger>();
 
   // Resend Timer logic
@@ -40,246 +42,271 @@ class _OtpVerificationViewState extends State<OtpVerificationView> {
   @override
   void initState() {
     super.initState();
-    _errorController = StreamController<ErrorAnimationType>.broadcast(); // Use broadcast stream if needed elsewhere
-    if (widget.email == null || widget.email!.isEmpty) {
-        _logger.e("OtpVerificationView initiated without a valid email address.");
-        // Optionally show an immediate error or pop the screen if email is critical
-    } else {
-       _logger.i("OTP Verification for: ${widget.email}");
-    }
+    _errorController = StreamController<ErrorAnimationType>.broadcast();
+    // Log the phone number this screen is intended for.
+    // The verification process should have already been initiated before navigating here.
+    _logger.i("OtpInputScreen initialized for ${widget.phoneNumber}");
+    // Start the cooldown timer immediately when the screen loads
     _startResendTimer();
+
+    // Add a listener to clear the OTP field if an error occurs from the ViewModel
+    // This ensures if verification fails (e.g., invalid code), the field clears.
+    // We need to use context.read inside initState callbacks or addPostFrameCallback
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+       if (mounted) {
+           context.read<AuthViewModel>().addListener(_handleViewModelErrors);
+       }
+    });
   }
 
   @override
   void dispose() {
+    // Remove the listener when the widget is disposed
+     if (mounted) {
+        context.read<AuthViewModel>().removeListener(_handleViewModelErrors);
+     }
     _otpController.dispose();
     _errorController?.close();
     _resendTimer?.cancel();
     super.dispose();
   }
 
-  void _startResendTimer() {
-    _canResend = false; // Ensure cannot resend immediately
-    _resendCooldown = 60; // Reset duration
-    _resendTimer?.cancel(); // Cancel previous timer
-
-    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) { // Safety check
-          timer.cancel();
-          return;
+  // Listener to react to errors set in the ViewModel
+  void _handleViewModelErrors() {
+     final authViewModel = context.read<AuthViewModel>();
+      // Check if an error exists and the controller has text
+      if (authViewModel.errorMessage != null && _otpController.text.isNotEmpty && mounted) {
+          _logger.d("ViewModel error detected, clearing OTP field.");
+          _otpController.clear();
+          _errorController?.add(ErrorAnimationType.shake);
       }
-      if (_resendCooldown <= 0) { // Use <= 0
-        setState(() {
-          _canResend = true;
-        });
-        timer.cancel();
-      } else {
-        setState(() {
-          _resendCooldown--;
-        });
-      }
-    });
-     // Initial state update if timer starts immediately
-     if (mounted) {
-        setState(() {});
-     }
   }
 
+
+  /// Starts or restarts the resend cooldown timer.
+  void _startResendTimer() {
+    _canResend = false; // Disable resend initially
+    _resendCooldown = 60; // Reset duration
+    _resendTimer?.cancel(); // Cancel existing timer
+
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_resendCooldown <= 0) {
+        // When cooldown finishes, enable resend and stop timer
+        setState(() => _canResend = true);
+        timer.cancel();
+      } else {
+        // Decrement timer and update UI
+        setState(() => _resendCooldown--);
+      }
+    });
+    // Update UI immediately if timer starts (e.g., to show initial cooldown)
+    if (mounted) setState(() {});
+  }
+
+  /// Verifies the entered OTP code using the AuthViewModel.
   Future<void> _verifyOtp() async {
-    FocusManager.instance.primaryFocus?.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus(); // Dismiss keyboard
     final enteredOtp = _otpController.text.trim();
 
+    // Validate OTP length
     if (enteredOtp.length != 6) {
-      _errorController?.add(ErrorAnimationType.shake);
-      _showErrorSnackbar("Please enter the complete 6-digit OTP.");
+      _errorController?.add(ErrorAnimationType.shake); // Trigger error animation
+      _showErrorSnackbar("Please enter the complete 6-digit code.");
       return;
     }
 
-     if (widget.email == null || widget.email!.isEmpty) {
-        _showErrorSnackbar("Cannot verify OTP: Email address is missing.");
-        return;
-     }
+    _logger.i("Verifying SMS code: $enteredOtp for Phone: ${widget.phoneNumber}");
+    // Use context.read for one-time action
+    final authViewModel = context.read<AuthViewModel>();
 
-     _logger.i("Verifying OTP: $enteredOtp for email: ${widget.email}");
-     // Access ViewModel using context.read as it's an action
-     final authViewModel = context.read<AuthViewModel>();
+    // Clear previous errors before attempting verification
+    authViewModel.clearError();
 
-     try {
-        // --- Assume ViewModel returns Map on success, throws on error ---
-        final result = await authViewModel.verifyEmailOTP(widget.email!, enteredOtp);
+    // Call ViewModel to verify the code and sign in.
+    // The ViewModel internally uses its stored _verificationId.
+    final result = await authViewModel.verifySmsCodeAndSignIn(enteredOtp);
 
-        // Check mounted state *after* await
-        if (!mounted) return;
+    if (!mounted) return; // Check if widget is still in the tree
 
-        // ViewModel now returns Map on success as well
-        if (result['status'] == 'success') {
-           _logger.i("OTP verification successful for ${widget.email}.");
-           _showSuccessSnackbar("Verification successful!");
-           // Navigate to the next screen (e.g., Main Screen or Set Password)
-           Navigator.pushNamedAndRemoveUntil(
-               context,
-               NavigationRoutes.mainScreen, // TODO: Adjust route based on context (signup vs password reset)
-               (route) => false // Remove all previous routes
-           );
-        } else {
-           // Handle error map returned by ViewModel
-            _logger.w("OTP verification failed (ViewModel returned error map): ${result['message']}");
-            _errorController?.add(ErrorAnimationType.shake);
-            _otpController.clear(); // Clear field on failure
-            _showErrorSnackbar(result['message'] ?? "Invalid or expired OTP.");
-        }
-
-     } catch (e) { // --- Catch exceptions thrown by ViewModel ---
-        _logger.e("Error verifying OTP", error: e);
-        if (!mounted) return; // Check mounted state again
-         _errorController?.add(ErrorAnimationType.shake);
-         _otpController.clear(); // Clear field on failure
-        // Use a user-friendly message from custom exceptions or generic one
-        _showErrorSnackbar(e is AppException ? e.message : "OTP Verification failed. Please try again.");
-     }
+    // The ViewModel's authStateChanges listener handles successful navigation automatically.
+    // We only need to handle explicit errors returned by the verifySmsCodeAndSignIn method itself.
+    if (result['status'] == 'error') {
+        _logger.w("SMS code verification failed: ${result['message']}");
+        // The _handleViewModelErrors listener might also catch this, but direct feedback is good too.
+        _errorController?.add(ErrorAnimationType.shake); // Shake animation on error
+        // Don't necessarily clear field here, let listener handle it based on ViewModel state change
+        _showErrorSnackbar(result['message'] ?? "Invalid or expired code.");
+    }
+    // On success, no explicit navigation needed here; AuthViewModel listener drives it.
+    // If successful, the auth state changes, _onAuthStateChanged runs, potentially navigates.
   }
 
+   /// Requests the AuthViewModel to resend the OTP code using its internal state.
    Future<void> _resendOtp() async {
-     if (!_canResend || widget.email == null || widget.email!.isEmpty) return;
-
+     if (!_canResend) return; // Only allow resend when timer is up
      FocusManager.instance.primaryFocus?.unfocus();
-     _logger.i("Resending OTP for email: ${widget.email}");
+     _logger.i("Requesting OTP resend for phone stored in ViewModel: ${widget.phoneNumber}"); // Log displayed number
      final authViewModel = context.read<AuthViewModel>();
 
-     try {
-        // --- Assume VM returns Map on success, throws on error ---
-        final result = await authViewModel.sendEmailOTP(widget.email!);
+     // Clear previous errors before attempting resend
+     authViewModel.clearError();
 
-        if (!mounted) return;
+     // Call ViewModel method to trigger resend. ViewModel uses its internally stored
+     // _pendingPhoneNumber and _forceResendingToken.
+     final result = await authViewModel.resendOtpCode(); // No argument needed
 
-         if (result['status'] == 'success') {
-           _showSuccessSnackbar("New OTP sent to ${widget.email}.");
-           _startResendTimer(); // Restart cooldown timer
-         } else {
-             // Handle error map returned by ViewModel
-             _logger.w("Resend OTP failed (ViewModel returned error map): ${result['message']}");
-             _showErrorSnackbar(result['message'] ?? "Failed to resend OTP.");
-         }
+     if (!mounted) return;
 
-     } catch (e) { // --- Catch exceptions thrown by ViewModel ---
-         _logger.e("Error resending OTP", error: e);
-         if (!mounted) return;
-         _showErrorSnackbar(e is AppException ? e.message : "Failed to resend OTP. Please try again.");
+     // Check the result of *initiating* the resend request
+     if (result['status'] == 'error') {
+         // Error *starting* the resend (e.g., no pending number in VM)
+         _logger.w("Failed to initiate OTP resend: ${result['message']}");
+         _showErrorSnackbar(result['message'] ?? "Failed to request code resend.");
+         // Optionally restart timer even on initiation failure to prevent spam
+         _startResendTimer();
+     } else {
+          // Assume initiation was successful (status is likely 'pending')
+          // The actual success/failure of SMS sending will be handled by callbacks in ViewModel,
+          // which might set authViewModel.errorMessage if needed.
+          _logger.i("OTP resend request initiated successfully.");
+          _showSuccessSnackbar("Requesting a new code for ${widget.phoneNumber}.");
+          _startResendTimer(); // Restart the cooldown timer
      }
    }
 
-    // --- Snackbar Helpers ---
-    void _showErrorSnackbar(String message) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating, // Consider floating for less intrusion
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // Rounded corners
-        ),
-      );
-    }
+  // --- Snackbar Helpers ---
+  void _showErrorSnackbar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+        margin: const EdgeInsets.all(16.0), // Add margin for floating
+      ),
+    );
+  }
 
-   void _showSuccessSnackbar(String message) {
-     if (!mounted) return;
-     ScaffoldMessenger.of(context).showSnackBar(
-       SnackBar(
-         content: Text(message),
-         backgroundColor: Colors.green,
-         behavior: SnackBarBehavior.floating,
-         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-       ),
-     );
-   }
+  void _showSuccessSnackbar(String message) {
+   if (!mounted) return;
+   ScaffoldMessenger.of(context).removeCurrentSnackBar();
+   ScaffoldMessenger.of(context).showSnackBar(
+     SnackBar(
+       content: Text(message),
+       backgroundColor: Colors.green,
+       behavior: SnackBarBehavior.floating,
+       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+       margin: const EdgeInsets.all(16.0),
+     ),
+   );
+ }
 
   @override
   Widget build(BuildContext context) {
-     // Use context.watch ONLY if the UI needs to react to isLoading changes
-     // Otherwise, context.read inside button onPressed is sufficient.
-     final authViewModel = context.watch<AuthViewModel>(); // Watching isLoading for overlay
+     // Watch AuthViewModel for isLoading state and errorMessage changes
+     final authViewModel = context.watch<AuthViewModel>();
+
+    // If an error message appears in the ViewModel, show it in a snackbar
+    // (This handles errors set asynchronously by callbacks like verificationFailed)
+    // Use a listener in build might cause multiple snackbars, handle via listener in initState instead.
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   if (authViewModel.errorMessage != null && mounted) {
+    //      _showErrorSnackbar(authViewModel.errorMessage!);
+    //      // Consider clearing the error in VM after showing it? Or let user action clear it.
+    //      // authViewModel.clearError();
+    //   }
+    // });
+
 
     return Scaffold(
-      appBar: const MamaCareAppBar(title: "Verify Email"),
-      body: Stack( // Use stack for loading overlay
+      appBar: const MamaCareAppBar(title: "Verify Phone Number"),
+      body: Stack(
         children: [
-          // Main Content
-          SafeArea( // Ensure content avoids system UI
+          SafeArea( // Ensure content is within safe area
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const SizedBox(height: 20),
-                    Text(
-                      "Enter Verification Code",
-                      style: TextStyles.headline2,
-                      textAlign: TextAlign.center,
-                    ),
+                    // Header Text
+                    Text("Enter Verification Code", style: TextStyles.headline2, textAlign: TextAlign.center),
                     const SizedBox(height: 12),
-                    Text(
-                      "Enter the 6-digit code sent to\n${widget.email ?? 'your email address'}",
-                      style: TextStyles.bodyGrey,
-                      textAlign: TextAlign.center,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Text(
+                        "Enter the 6-digit code sent via SMS to\n${widget.phoneNumber}", // Display target phone number
+                        style: TextStyles.bodyGrey,
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                     const SizedBox(height: 40),
 
-                    // OTP Input Field
+                    // OTP Input Field using pin_code_fields package
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 10.0), // Adjust padding
+                      padding: const EdgeInsets.symmetric(horizontal: 10.0), // Adjust padding for OTP field
                       child: PinCodeTextField(
                         appContext: context,
-                        length: 6,
+                        length: 6, // Standard OTP length
                         obscureText: false,
                         animationType: AnimationType.fade,
                         pinTheme: PinTheme(
-                          shape: PinCodeFieldShape.box,
+                          shape: PinCodeFieldShape.box, // Or .underline, .circle
                           borderRadius: BorderRadius.circular(10),
-                          fieldHeight: 55, // Adjust size as needed
-                          fieldWidth: 45, // Adjust size as needed
-                          activeFillColor: Colors.white,
-                          inactiveFillColor: AppColors.background.withOpacity(0.5), // Lighter inactive fill
-                          selectedFillColor: Colors.white,
+                          fieldHeight: 55,
+                          fieldWidth: 45, // Adjust width based on screen size if needed
+                          activeFillColor: Colors.white, // Background when active/filled
+                          inactiveFillColor: Colors.grey.shade100, // Background when inactive
+                          selectedFillColor: Colors.white, // Background when selected
                           activeColor: AppColors.primary, // Border color when active
                           inactiveColor: Colors.grey.shade300, // Border color when inactive
-                          selectedColor: AppColors.primaryLight, // Border color when selected (focused)
+                          selectedColor: AppColors.primaryLight, // Border color when selected
                            borderWidth: 1,
                         ),
                         animationDuration: const Duration(milliseconds: 300),
-                        backgroundColor: Colors.transparent,
-                        enableActiveFill: true,
-                        errorAnimationController: _errorController,
-                        controller: _otpController,
+                        backgroundColor: Colors.transparent, // Let parent handle background
+                        enableActiveFill: true, // Enable fill colors
+                        errorAnimationController: _errorController, // Controller for shake animation
+                        controller: _otpController, // Controller for text value
                         keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly], // Ensure only digits
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly], // Allow only numbers
                         onCompleted: (v) {
-                          _logger.d("OTP field completed");
-                          // Only verify if not currently loading
+                          // Auto-submit when 6 digits are entered, if not loading
                           if (!authViewModel.isLoading) {
-                             _verifyOtp(); // Auto-verify on completion
+                             _logger.d("OTP field completed");
+                             _verifyOtp();
                           }
                         },
                         onChanged: (value) {
-                          // Can potentially clear error state on change
-                          // if (authViewModel.error != null) { authViewModel.clearError(); }
+                          // Clear ViewModel error state when user starts typing
+                          if (authViewModel.errorMessage != null) {
+                             authViewModel.clearError();
+                          }
                         },
                         beforeTextPaste: (text) {
                            _logger.d("Attempting to paste OTP: $text");
-                           // Basic validation before pasting
+                          // Validate pasted text (must be 6 digits)
                            return text != null && text.length == 6 && int.tryParse(text) != null;
                         },
                       ),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
 
                     // Verify Button
-                    SizedBox( // Give button full width or defined width
-                      width: double.infinity,
+                    SizedBox(
+                      width: double.infinity, // Make button wide
                       child: CustomButton(
                         label: "Verify Code",
-                        // Disable button when loading
+                        // Disable button while loading
                         onPressed: authViewModel.isLoading ? null : _verifyOtp,
                         backgroundColor: AppColors.primary,
+                        textStyle: TextStyles.buttonText,
                       ),
                     ),
                     const SizedBox(height: 30),
@@ -290,42 +317,29 @@ class _OtpVerificationViewState extends State<OtpVerificationView> {
                        children: [
                           Text("Didn't receive the code?", style: TextStyles.bodyGrey),
                           TextButton(
-                            onPressed: (_canResend && !authViewModel.isLoading) ? _resendOtp : null, // Also disable if loading
+                            // Disable button during loading and during cooldown
+                            onPressed: (_canResend && !authViewModel.isLoading) ? _resendOtp : null,
                             child: Text(
-                               _canResend ? "Resend OTP" : "Resend in $_resendCooldown s",
+                               _canResend ? "Resend Code" : "Resend in $_resendCooldown s",
                                style: _canResend
-                                  ? TextStyles.linkText // Use defined link style
-                                  : TextStyles.bodyGrey.copyWith(fontSize: 13.sp), // Use grey when disabled
+                                  ? TextStyles.linkText // Active link style
+                                  : TextStyles.bodyGrey.copyWith(fontSize: 13.sp, color: Colors.grey.shade500), // Disabled/cooldown style
                             ),
                           ),
                        ],
                     ),
-                     const SizedBox(height: 20), // Bottom padding
+                    const SizedBox(height: 20), // Bottom padding
                   ],
                 ),
             ),
           ),
-          // Loading Overlay
+          // Loading Overlay (Uses ViewModel state)
           if (authViewModel.isLoading)
-             const Opacity(
-               opacity: 0.6, // Slightly less opaque
-               child: ModalBarrier(dismissible: false, color: Colors.black),
-             ),
-           if (authViewModel.isLoading)
+             const Opacity( opacity: 0.6, child: ModalBarrier(dismissible: false, color: Colors.black) ),
+          if (authViewModel.isLoading)
              const Center(child: CircularProgressIndicator(color: AppColors.primary)),
         ],
       ),
     );
   }
 }
-
-// Make sure you have imported or defined:
-// - locator (from injection.dart)
-// - NavigationRoutes (from router.dart)
-// - AuthViewModel (from auth_viewmodel.dart)
-// - CustomButton (from widgets)
-// - MamaCareAppBar (from widgets)
-// - AppColors (from utils)
-// - TextStyles (from utils)
-// - AppException (from core/error/exceptions.dart)
-// - Added pin_code_fields to pubspec.yaml

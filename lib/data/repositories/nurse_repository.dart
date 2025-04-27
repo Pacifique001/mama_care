@@ -2,6 +2,7 @@
 import 'package:mama_care/domain/entities/nurse.dart';
 import 'package:mama_care/domain/entities/patient_summary.dart';
 import 'package:injectable/injectable.dart';
+import 'package:mama_care/domain/entities/user_model.dart';
 
 @factoryMethod
 abstract class NurseRepository {
@@ -19,7 +20,7 @@ abstract class NurseRepository {
   /// Unassigns a patient from a nurse. Handles relevant data updates.
   Future<void> unassignPatient({required String nurseId, required String patientId});
 
-  Future<Nurse?> getCurrentNurseProfile(String nurseId);
+  //Future<Nurse?> getCurrentNurseProfile(String nurseId);
   /// Assigns a specific nurse to a context (e.g., patient or appointment).
   /// The implementation handles updating relevant documents (e.g., creating
   /// a NurseAssignment record, updating patient/appointment docs, updating nurse doc).
@@ -28,6 +29,10 @@ abstract class NurseRepository {
       required String nurseId,
       required String doctorId, // ID of the doctor performing assignment
    });
+
+  Future<UserModel?> getNurseProfile(String nurseId);
+
+  getNurseUpcomingAppointments(String nurseId) {}
 
    // Add other nurse-related methods if needed (e.g., getNurseProfile)
    

@@ -56,4 +56,26 @@ class NotificationUseCase {
   Future<String?> getDeviceToken() async {
     return await _notificationRepository.getDeviceToken();
   }
+  Future<void> scheduleAppointmentNotification({
+  required String title,
+  required String body,
+  required DateTime scheduledDate,
+  required String appointmentId,
+  String? route,
+}) async {
+  Map<String, dynamic> payload = {
+    'appointmentId': appointmentId,
+  };
+  
+  if (route != null) {
+    payload['route'] = route;
+  }
+  
+  await _notificationRepository.scheduleNotification(
+    title: title,
+    body: body,
+    scheduledDate: scheduledDate,
+    payload: payload,
+  );
+}
 }

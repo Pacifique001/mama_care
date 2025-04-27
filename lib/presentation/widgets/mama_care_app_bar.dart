@@ -5,6 +5,7 @@ class MamaCareAppBar extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget>? actions;
   final Widget? trailing;
   final String title;
+  final TextStyle? titleStyle;
   final Color? backgroundColor;
   final Color? textColor;
   final bool centerTitle;
@@ -28,6 +29,7 @@ class MamaCareAppBar extends StatelessWidget implements PreferredSizeWidget {
     this.trailingPadding = const EdgeInsets.all(8.0),
     this.trailingWidget,
     this.automaticallyImplyLeading = true,
+    this.titleStyle,
   });
 
   @override
@@ -39,9 +41,7 @@ class MamaCareAppBar extends StatelessWidget implements PreferredSizeWidget {
     );
 
     return Container(
-      decoration: BoxDecoration(
-        boxShadow: shadow,
-      ),
+      decoration: BoxDecoration(boxShadow: shadow),
       child: AppBar(
         leading: leading,
         title: Text(
@@ -52,10 +52,7 @@ class MamaCareAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
         actions: [
           if (trailing != null)
-            Padding(
-              padding: trailingPadding!,
-              child: trailing!,
-            ),
+            Padding(padding: trailingPadding!, child: trailing!),
         ],
         backgroundColor: backgroundColor,
         centerTitle: centerTitle,
@@ -67,7 +64,7 @@ class MamaCareAppBar extends StatelessWidget implements PreferredSizeWidget {
         titleTextStyle: textStyle,
         surfaceTintColor: Colors.transparent,
         //automaticallyImplyLeading: leading != null,
-         automaticallyImplyLeading: automaticallyImplyLeading,
+        automaticallyImplyLeading: automaticallyImplyLeading,
       ),
     );
   }

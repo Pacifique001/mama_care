@@ -23,22 +23,13 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
         return windows;
       case TargetPlatform.linux:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for linux - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return linux;
       default:
         throw UnsupportedError(
           'DefaultFirebaseOptions are not supported for this platform.',
@@ -66,6 +57,30 @@ class DefaultFirebaseOptions {
     storageBucket: 'mamacare-2cf36.firebasestorage.app',
   );
 
+  // Using web configuration for iOS as fallback
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyDmwgDtSeTwPz5FEvFFJQcX6dgHrYE2qSk',
+    appId: '1:659099084415:web:d00277d40d9841c98b814a',
+    messagingSenderId: '659099084415',
+    projectId: 'mamacare-2cf36',
+    authDomain: 'mamacare-2cf36.firebaseapp.com',
+    databaseURL: 'https://mamacare-2cf36-default-rtdb.firebaseio.com',
+    storageBucket: 'mamacare-2cf36.firebasestorage.app',
+    measurementId: 'G-MQQ52HVNLE',
+  );
+
+  // Using web configuration for macOS as fallback
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyDmwgDtSeTwPz5FEvFFJQcX6dgHrYE2qSk',
+    appId: '1:659099084415:web:d00277d40d9841c98b814a',
+    messagingSenderId: '659099084415',
+    projectId: 'mamacare-2cf36',
+    authDomain: 'mamacare-2cf36.firebaseapp.com',
+    databaseURL: 'https://mamacare-2cf36-default-rtdb.firebaseio.com',
+    storageBucket: 'mamacare-2cf36.firebasestorage.app',
+    measurementId: 'G-MQQ52HVNLE',
+  );
+
   static const FirebaseOptions windows = FirebaseOptions(
     apiKey: 'AIzaSyDmwgDtSeTwPz5FEvFFJQcX6dgHrYE2qSk',
     appId: '1:659099084415:web:2ad35c28bf6990088b814a',
@@ -77,4 +92,15 @@ class DefaultFirebaseOptions {
     measurementId: 'G-79Y0HVXEMY',
   );
 
+  // Using web configuration for Linux as fallback
+  static const FirebaseOptions linux = FirebaseOptions(
+    apiKey: 'AIzaSyDmwgDtSeTwPz5FEvFFJQcX6dgHrYE2qSk',
+    appId: '1:659099084415:web:d00277d40d9841c98b814a',
+    messagingSenderId: '659099084415',
+    projectId: 'mamacare-2cf36',
+    authDomain: 'mamacare-2cf36.firebaseapp.com',
+    databaseURL: 'https://mamacare-2cf36-default-rtdb.firebaseio.com',
+    storageBucket: 'mamacare-2cf36.firebasestorage.app',
+    measurementId: 'G-MQQ52HVNLE',
+  );
 }

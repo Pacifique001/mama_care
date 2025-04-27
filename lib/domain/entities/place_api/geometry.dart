@@ -1,21 +1,26 @@
+// lib/domain/entities/place_api/geometry.dart
 import 'package:json_annotation/json_annotation.dart';
-import 'package:mama_care/domain/entities/place_api/viewport.dart';
-import 'package:mama_care/domain/entities/place_api/location.dart';
+import 'package:equatable/equatable.dart';
+import 'location.dart'; // Import the corrected Location
+// Remove Viewport import if not strictly needed or define it correctly based on JSON
+import 'viewport.dart';
 
 part 'geometry.g.dart';
 
-@JsonSerializable()
-class Geometry {
+@JsonSerializable(explicitToJson: true) // Use explicitToJson if Location has toJson
+class Geometry extends Equatable {
   final Location location;
-  final Viewport viewport;
+  // Viewport might be nested differently or optional, adjust as needed
+  final Viewport? viewport;
 
-  Geometry({
+  const Geometry({
     required this.location,
-    required this.viewport,
+     this.viewport,
   });
 
-  factory Geometry.fromJson(Map<String, dynamic> json) =>
-      _$GeometryFromJson(json);
-
+  factory Geometry.fromJson(Map<String, dynamic> json) => _$GeometryFromJson(json);
   Map<String, dynamic> toJson() => _$GeometryToJson(this);
+
+  @override
+  List<Object?> get props => [location /*, viewport*/];
 }

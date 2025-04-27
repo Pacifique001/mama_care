@@ -15,6 +15,7 @@ class CustomTextField extends StatelessWidget {
   final void Function(String)? onFieldSubmitted;
   final bool enabled;
   final EdgeInsetsGeometry? contentPadding;
+  final String? labelText;
   // Theme-based colors (less direct parameters needed)
   // final Color? borderColor;
   // final Color? focusedBorderColor;
@@ -34,6 +35,7 @@ class CustomTextField extends StatelessWidget {
     super.key,
     required this.controller,
     required this.hint,
+    this.labelText,
     this.obscureText = false,
     this.suffixIcon,
     this.prefixIcon, // Added
@@ -60,12 +62,18 @@ class CustomTextField extends StatelessWidget {
     // Get theme data for styling
     final theme = Theme.of(context);
     final colors = theme.colorScheme; // Access ColorScheme
-    final inputTheme = theme.inputDecorationTheme; // Access InputDecorationTheme
+    final inputTheme =
+        theme.inputDecorationTheme; // Access InputDecorationTheme
 
     // Define border styles using theme or defaults
-    final defaultBorderSide = BorderSide(color: colors.onSurface.withOpacity(0.3)); // Default border
+    final defaultBorderSide = BorderSide(
+      color: colors.onSurface.withOpacity(0.3),
+    ); // Default border
     final errorBorderSide = BorderSide(color: colors.error); // Error border
-    final focusedBorderSide = BorderSide(color: AppColors.primary, width: 1.5); // Focused border (using AppColors example)
+    final focusedBorderSide = BorderSide(
+      color: AppColors.primary,
+      width: 1.5,
+    ); // Focused border (using AppColors example)
 
     final borderStyle = OutlineInputBorder(
       borderRadius: BorderRadius.circular(borderRadius),
@@ -83,9 +91,12 @@ class CustomTextField extends StatelessWidget {
       borderRadius: BorderRadius.circular(borderRadius),
       borderSide: inputTheme.errorBorder?.borderSide ?? errorBorderSide,
     );
-    final focusedErrorBorderStyle = OutlineInputBorder( // Also style focused error state
+    final focusedErrorBorderStyle = OutlineInputBorder(
+      // Also style focused error state
       borderRadius: BorderRadius.circular(borderRadius),
-      borderSide: inputTheme.focusedErrorBorder?.borderSide ?? errorBorderSide.copyWith(width: 1.5),
+      borderSide:
+          inputTheme.focusedErrorBorder?.borderSide ??
+          errorBorderSide.copyWith(width: 1.5),
     );
 
     return TextFormField(
@@ -103,34 +114,53 @@ class CustomTextField extends StatelessWidget {
       maxLines: obscureText ? 1 : maxLines, // Force single line for passwords
       minLines: obscureText ? 1 : minLines,
       textCapitalization: textCapitalization,
-      style: inputTheme.labelStyle ?? theme.textTheme.bodyMedium?.copyWith(
+
+      style:
+          inputTheme.labelStyle ??
+          theme.textTheme.bodyMedium?.copyWith(
             color: colors.onSurface, // Use theme text color
           ),
       decoration: InputDecoration(
         // Icons
         prefixIcon: prefixIcon,
         suffixIcon: suffixIcon,
+        labelText: labelText,
         // Hint
         hintText: hint,
-        hintStyle: inputTheme.hintStyle ?? theme.textTheme.bodyMedium?.copyWith(
+        hintStyle:
+            inputTheme.hintStyle ??
+            theme.textTheme.bodyMedium?.copyWith(
               color: colors.onSurface.withOpacity(0.5), // Use theme hint color
             ),
         // Padding
-        contentPadding: contentPadding ?? inputTheme.contentPadding ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 14), // More control
+        contentPadding:
+            contentPadding ??
+            inputTheme.contentPadding ??
+            const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 14,
+            ), // More control
         // Borders
         border: inputTheme.border ?? borderStyle, // Prefer theme's definition
         enabledBorder: enabledBorderStyle,
         focusedBorder: focusedBorderStyle,
         errorBorder: errorBorderStyle,
         focusedErrorBorder: focusedErrorBorderStyle, // Add focused error border
-        disabledBorder: enabledBorderStyle.copyWith( // Style for disabled state
-           borderSide: BorderSide(color: colors.onSurface.withOpacity(0.2))
+        disabledBorder: enabledBorderStyle.copyWith(
+          // Style for disabled state
+          borderSide: BorderSide(color: colors.onSurface.withOpacity(0.2)),
         ),
         // Fill & Background (Optional, depends on design)
-        filled: inputTheme.filled ?? false, // Check if theme wants filled fields
-        fillColor: inputTheme.fillColor ?? colors.surface.withOpacity(0.05), // Use theme fill color
+        filled:
+            inputTheme.filled ?? false, // Check if theme wants filled fields
+        fillColor:
+            inputTheme.fillColor ??
+            colors.surface.withOpacity(0.05), // Use theme fill color
         // Error style
-        errorStyle: errorStyle ?? inputTheme.errorStyle ?? TextStyle(color: colors.error, fontSize: 12),
+        errorStyle:
+            errorStyle ??
+            inputTheme.errorStyle ??
+            TextStyle(color: colors.error, fontSize: 12),
       ),
     );
   }

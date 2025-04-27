@@ -1,20 +1,24 @@
 // lib/presentation/view/signup_view.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart'; // For input formatters
 import 'package:mama_care/presentation/screen/doctor_dashboard_screen.dart';
+import 'package:mama_care/presentation/screen/verification_pending_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:mama_care/presentation/viewmodel/auth_viewmodel.dart';
-import 'package:mama_care/presentation/viewmodel/signup_viewmodel.dart';
+import 'package:mama_care/presentation/viewmodel/signup_viewmodel.dart'; // Import SignupViewModel
 import 'package:mama_care/presentation/widgets/custom_button.dart';
 import 'package:mama_care/presentation/widgets/custom_text_field.dart';
 import 'package:mama_care/presentation/widgets/google_auth_button.dart';
 import 'package:mama_care/navigation/router.dart';
 import 'package:mama_care/utils/app_colors.dart';
 import 'package:mama_care/utils/text_styles.dart';
-import 'package:mama_care/domain/entities/user_role.dart';
+import 'package:provider/single_child_widget.dart';
+// Removed AssetHelper as logo was removed from this view: import 'package:mama_care/utils/asset_helper.dart';
+import 'package:sizer/sizer.dart'; // Assuming sizer is used
+import 'package:mama_care/domain/entities/user_role.dart'; // Import UserRole enum
 import 'package:logger/logger.dart';
-import 'package:mama_care/injection.dart';
+import 'package:mama_care/injection.dart'; // Import locator
 import 'package:mama_care/presentation/widgets/mama_care_app_bar.dart';
 
 // Screen Wrapper to provide ViewModel specifically for the SignUp screen
@@ -23,16 +27,24 @@ class SignUpScreenWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create:
-          (_) =>
-              locator<
-                SignupViewModel
-              >(), // Create/provide SignupViewModel via locator
+    return MultiProvider(
+      providers: _buildProviders(),
       child: const SignUpView(), // The actual view content
     );
   }
+
+  List<SingleChildWidget> _buildProviders() {
+    // Provide SignupViewModel when this wrapper is used in navigation
+    return [
+      ChangeNotifierProvider(create: (_) => locator<SignupViewModel>()),
+      ChangeNotifierProvider<AuthViewModel>(
+        create: (_) => locator<AuthViewModel>(),
+      ), // Create/provide SignupViewModel via locator
+    ];
+  }
 }
+
+// Extension to capitalize strings (needed for role.name.capitalize())
 
 // The main SignUp View widget
 class SignUpView extends StatefulWidget {
@@ -66,17 +78,21 @@ class _SignUpViewState extends State<SignUpView> {
 
   @override
   Widget build(BuildContext context) {
+    // Use Consumer to get ViewModels and react to changes
     return Consumer<SignupViewModel>(
-      builder: (context, SignupViewModel, child) {
+      builder: (context, signupViewModel, child) {
+        // Watch AuthViewModel for global loading state (e.g., during Google sign-in)
         final authViewModel = context.watch<AuthViewModel>();
+        // Combine loading states for overlay and button disabling
         final bool isOverallLoading =
-            SignupViewModel.isSigningUp || authViewModel.isLoading;
+            signupViewModel.isSigningUp || authViewModel.isLoading;
 
         return Scaffold(
           resizeToAvoidBottomInset: true,
+          // Use standard AppBar or your custom one
           appBar: const MamaCareAppBar(
-            title: "Create Account",
-            automaticallyImplyLeading: true,
+            title: "SIGN UP ",
+            automaticallyImplyLeading: true, // Show back arrow if pushed
           ),
           body: GestureDetector(
             onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -91,13 +107,14 @@ class _SignUpViewState extends State<SignUpView> {
                       ),
                       child: _buildSignupForm(
                         context,
-                        SignupViewModel,
+                        signupViewModel,
                         authViewModel,
                         isOverallLoading,
                       ),
                     ),
                   ),
                 ),
+                // Loading Overlay
                 if (isOverallLoading)
                   const Opacity(
                     opacity: 0.7,
@@ -142,60 +159,50 @@ class _SignUpViewState extends State<SignUpView> {
             style: TextStyles.bodyGrey,
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 30), // Increased spacing
+          // --- Input Fields Container ---
+          // No explicit container needed unless adding specific styling
+          _buildNameField(context),
+          const SizedBox(height: 16),
+          _buildEmailField(context),
+          const SizedBox(height: 16),
+          _buildPasswordField(context),
+          const SizedBox(height: 16),
+          _buildConfirmPasswordField(context),
+          const SizedBox(height: 16),
+          _buildPhoneField(context),
+          const SizedBox(height: 16),
+          _buildRoleSelection(),
           const SizedBox(height: 24),
-          Container(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildNameField(context),
-                const SizedBox(height: 16),
-                _buildEmailField(context),
-                const SizedBox(height: 16),
-                _buildPasswordField(context),
-                const SizedBox(height: 16),
-                _buildConfirmPasswordField(context),
-                const SizedBox(height: 16),
-                _buildPhoneField(context),
-                const SizedBox(height: 16),
-                _buildRoleSelection(),
-              ],
-            ),
-          ),
+
+          // --- Action Buttons Container ---
+          _buildSignUpButton(signupViewModel, isLoading), // Pass loading state
+          const SizedBox(height: 16),
+          _buildLoginLink(context),
           const SizedBox(height: 24),
-          Container(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildSignUpButton(signupViewModel, isLoading),
-                const SizedBox(height: 16),
-                _buildLoginLink(context),
-              ],
-            ),
+
+          // --- Social/Alternative Login Container ---
+          Row(
+            children: [
+              const Expanded(child: Divider(endIndent: 10)),
+              Text("OR", style: TextStyles.bodyGrey),
+              const Expanded(child: Divider(indent: 10)),
+            ],
           ),
-          const SizedBox(height: 24),
-          Container(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    const Expanded(child: Divider(endIndent: 10)),
-                    Text("OR", style: TextStyles.bodyGrey),
-                    const Expanded(child: Divider(indent: 10)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _buildGoogleSignUpButton(authViewModel, isLoading),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+          _buildGoogleSignUpButton(
+            authViewModel,
+            isLoading,
+          ), // Pass loading state
+          const SizedBox(height: 20), // Bottom padding
         ],
       ),
     );
   }
 
   // --- Field Builder Methods ---
+
+  // Helper for label + field structure
   Widget _buildFormField({
     required BuildContext context,
     required String label,
@@ -211,6 +218,7 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
+  // Name Field Implementation
   Widget _buildNameField(BuildContext context) {
     return _buildFormField(
       context: context,
@@ -231,6 +239,7 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
+  // Email Field Implementation
   Widget _buildEmailField(BuildContext context) {
     return _buildFormField(
       context: context,
@@ -242,7 +251,7 @@ class _SignUpViewState extends State<SignUpView> {
           Icons.email_outlined,
           color: AppColors.primaryLight,
         ),
-        validator: _validateEmail,
+        validator: _validateEmail, // Use validation method
         keyboardType: TextInputType.emailAddress,
         textInputAction: TextInputAction.next,
         autofillHints: const [AutofillHints.email, AutofillHints.username],
@@ -250,6 +259,7 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
+  // Password Field Implementation
   Widget _buildPasswordField(BuildContext context) {
     return _buildFormField(
       context: context,
@@ -258,13 +268,15 @@ class _SignUpViewState extends State<SignUpView> {
         controller: _passwordController,
         hint: "Enter password (min 8 chars)",
         obscureText: _obscurePassword,
-        validator: _validatePassword,
+        validator: _validatePassword, // Use validation method
         prefixIcon: const Icon(
           Icons.lock_outline,
           color: AppColors.primaryLight,
         ),
-        autofillHints: const [AutofillHints.newPassword],
-        textInputAction: TextInputAction.next,
+        autofillHints: const [
+          AutofillHints.newPassword,
+        ], // Hint for new password
+        textInputAction: TextInputAction.next, // Go to confirm password
         suffixIcon: InkWell(
           onTap: () => setState(() => _obscurePassword = !_obscurePassword),
           child: Icon(
@@ -278,6 +290,7 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
+  // Confirm Password Field Implementation
   Widget _buildConfirmPasswordField(BuildContext context) {
     return _buildFormField(
       context: context,
@@ -287,7 +300,10 @@ class _SignUpViewState extends State<SignUpView> {
         hint: "Re-enter your password",
         obscureText: _obscureConfirmPassword,
         validator: (value) {
-          if (value == null || value.isEmpty) return 'Please confirm password';
+          // Validation compares with the first password field
+          if (value == null || value.isEmpty) {
+            return 'Please confirm your password';
+          }
           if (value != _passwordController.text) {
             return 'Passwords do not match';
           }
@@ -298,7 +314,7 @@ class _SignUpViewState extends State<SignUpView> {
           color: AppColors.primaryLight,
         ),
         autofillHints: const [AutofillHints.newPassword],
-        textInputAction: TextInputAction.next,
+        textInputAction: TextInputAction.next, // Go to phone number
         suffixIcon: InkWell(
           onTap:
               () => setState(
@@ -315,40 +331,47 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
+  // Phone Field Implementation
   Widget _buildPhoneField(BuildContext context) {
     return _buildFormField(
       context: context,
-      label: "Phone Number (Optional)",
+      label: "Phone Number",
       child: CustomTextField(
         controller: _phoneNumberController,
-        hint: "Enter your phone number",
+        hint:
+            "Enter your phone number (e.g. +1...)", // Add hint for country code
         prefixIcon: const Icon(
           Icons.phone_outlined,
           color: AppColors.primaryLight,
         ),
-        validator: _validatePhoneNumber,
+        validator: _validatePhoneNumber, // Use optional validation
         keyboardType: TextInputType.phone,
-        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        textInputAction: TextInputAction.done,
+        inputFormatters: [
+          FilteringTextInputFormatter.digitsOnly,
+        ], // Allow digits and potentially '+'? Adjust if needed.
+        textInputAction: TextInputAction.next, // Go to Role selection
         autofillHints: const [AutofillHints.telephoneNumber],
       ),
     );
   }
 
+  // Role Selection Implementation
   Widget _buildRoleSelection() {
     return _buildFormField(
       context: context,
       label: "Register As",
       child: DropdownButtonFormField<UserRole>(
         value: _selectedRole,
+        // Define which roles can self-register
         items:
             UserRole.values
                 .where(
-                  (role) =>
-                      role == UserRole.patient ||
-                      role == UserRole.nurse ||
-                      role == UserRole.doctor,
-                )
+                  (role) => [
+                    UserRole.patient,
+                    UserRole.nurse,
+                    UserRole.doctor,
+                  ].contains(role),
+                ) // Allow these roles
                 .map(
                   (role) => DropdownMenuItem<UserRole>(
                     value: role,
@@ -368,6 +391,7 @@ class _SignUpViewState extends State<SignUpView> {
             _getRoleIcon(_selectedRole),
             color: AppColors.primaryLight,
           ),
+          // Standard Input Decoration for consistency
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: Colors.grey.shade400),
@@ -380,17 +404,27 @@ class _SignUpViewState extends State<SignUpView> {
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(color: AppColors.primary, width: 1.5),
           ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.redAccent),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+          ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 14,
-          ),
+          ), // Consistent padding
         ),
         validator: (value) => value == null ? 'Please select a role' : null,
         isExpanded: true,
+        dropdownColor: Colors.white, // Background color of dropdown items
       ),
     );
   }
 
+  // Helper to get an icon based on role
   IconData _getRoleIcon(UserRole role) {
     switch (role) {
       case UserRole.patient:
@@ -399,21 +433,25 @@ class _SignUpViewState extends State<SignUpView> {
         return Icons.medical_services_outlined;
       case UserRole.doctor:
         return Icons.health_and_safety_outlined;
+      case UserRole.admin:
+        return Icons.admin_panel_settings_outlined;
       default:
         return Icons.person_outline;
     }
   }
 
   // --- Button/Link Builders ---
+  // Sign Up Button Implementation
   Widget _buildSignUpButton(SignupViewModel signupViewModel, bool isLoading) {
     return CustomButton(
       label: "Create Account",
       onPressed: isLoading ? null : () => _handleSignUp(signupViewModel),
       backgroundColor: AppColors.primary,
-      textStyle: TextStyles.buttonText,
+      textStyle: TextStyles.buttonText, // Use defined style
     );
   }
 
+  // Login Link Implementation
   Widget _buildLoginLink(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -431,13 +469,15 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
+  // Google Sign Up Button Implementation
   Widget _buildGoogleSignUpButton(AuthViewModel authViewModel, bool isLoading) {
+    // isLoading for Google button should primarily reflect AuthViewModel's loading state
     return GoogleAuthButton(
       label: "Continue with Google",
       onPressed: isLoading ? null : () => _handleGoogleSignUp(authViewModel),
-      isLoading: isLoading,
+      isLoading: authViewModel.isLoading, // Use AuthVM loading state
     );
-  } // Show Google loading only if AuthVM is loading for Google
+  }
 
   // --- Validation Logic ---
   String? _validateEmail(String? value) {
@@ -459,55 +499,79 @@ class _SignUpViewState extends State<SignUpView> {
   }
 
   String? _validatePhoneNumber(String? value) {
-    if (value == null || value.trim().isEmpty) return null;
+    if (value == null || value.trim().isEmpty) {
+      return 'Please enter your phone number'; /* Add more specific validation if needed */
+    }
     return null;
-  } // Keep phone optional
+  }
 
   // --- Action Handlers ---
+  // Handle Email/Password Signup Implementation
+  // lib/presentation/view/signup_view.dart -> _SignUpViewState
+
   Future<void> _handleSignUp(SignupViewModel signupViewModel) async {
     FocusManager.instance.primaryFocus?.unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final authViewModel =
-        context.read<AuthViewModel>(); // Needed for navigation check later
-
-    bool didInitiate = await signupViewModel.signup(
+    // Call SignupViewModel method (which calls AuthViewModel internally)
+    final result = await signupViewModel.signup(
       email: _emailController.text.trim(),
       password: _passwordController.text.trim(),
       name: _nameController.text.trim(),
-      phoneNumber:
-          _phoneNumberController.text.trim().isEmpty
-              ? null
-              : _phoneNumberController.text.trim(),
-      profileImageUrl: null, // Implement image picker for this
+      phoneNumber: _phoneNumberController.text.trim(),
       initialRole: _selectedRole,
+      profileImageUrl: null, // Not implemented
     );
 
     if (!mounted) return;
 
-    if (didInitiate) {
+    // Check the status returned from AuthViewModel.signUpWithEmail
+    if (result['status'] == 'success_needs_verification') {
       _logger.i(
-        "Signup initiated. Navigating to OTP verification for ${_emailController.text.trim()}",
+        "Signup successful, verification pending for ${_emailController.text.trim()}.",
       );
-      _showSuccessSnackbar(
-        "Account creation requested. Please check your email to verify.",
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Verification email sent!'),
+          backgroundColor: Colors.green,
+        ),
       );
-      Navigator.pushReplacementNamed(
+
+      // Navigate to the verification pending screen
+      Navigator.pushReplacement(
         context,
-        NavigationRoutes.otpVerification,
-        arguments: _emailController.text.trim(),
+        MaterialPageRoute(
+          builder:
+              (context) => VerificationPendingScreen(
+                email: _emailController.text.trim(),
+                phoneNumber:
+                    _phoneNumberController.text.trim().isNotEmpty
+                        ? _phoneNumberController.text.trim()
+                        : null,
+                userId: result['userId'], // Pass the userId from result
+              ),
+        ),
       );
     } else {
-      _showErrorSnackbar(signupViewModel.signupError ?? 'Signup failed.');
+      // Handle errors using the message from the result map
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Signup failed.'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
+  // Handle Google Signup Implementation
   Future<void> _handleGoogleSignUp(AuthViewModel authViewModel) async {
     FocusManager.instance.primaryFocus?.unfocus();
     final result = await authViewModel.signInWithGoogle();
     if (!mounted) return;
     if (result['status'] == 'success') {
-      _showSuccessSnackbar("Signed in with Google successfully!");
+      _showSuccessSnackbar("Signed up with Google successfully!");
       _navigateToDashboardBasedOnRole(result['role'] as String?, authViewModel);
     } else if (result['status'] != 'cancelled') {
       _showErrorSnackbar(result['message'] ?? 'Google sign-up failed.');
@@ -515,6 +579,7 @@ class _SignUpViewState extends State<SignUpView> {
   }
 
   // --- Navigation & Feedback ---
+  // Navigate Based on Role Implementation
   void _navigateToDashboardBasedOnRole(
     String? roleString,
     AuthViewModel authViewModel,
@@ -536,17 +601,22 @@ class _SignUpViewState extends State<SignUpView> {
         break;
       case UserRole.unknown:
       default:
-        _logger.e("Unknown role after sign-up/sign-in: $role");
+        _logger.e("Unknown/unhandled role after sign-up: $role");
         _showErrorSnackbar(
-          "Signup successful, but couldn't determine dashboard access.",
+          "Signup successful, but couldn't determine dashboard.",
         );
         targetRoute = NavigationRoutes.mainScreen;
         break;
     }
     _logger.i("Navigating to $targetRoute based on role $role");
-    Navigator.pushNamedAndRemoveUntil(context, targetRoute, (route) => false);
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      targetRoute,
+      (route) => false,
+    ); // Clear auth stack
   }
 
+  // Show Error Snackbar Implementation
   void _showErrorSnackbar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).removeCurrentSnackBar();
@@ -560,6 +630,7 @@ class _SignUpViewState extends State<SignUpView> {
     );
   }
 
+  // Show Success Snackbar Implementation
   void _showSuccessSnackbar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).removeCurrentSnackBar();
@@ -570,26 +641,6 @@ class _SignUpViewState extends State<SignUpView> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
-    );
-  }
-}
-
-// Helper Widget (Copied from LoginView Implementation)
-class _FormFieldHelper extends StatelessWidget {
-  // Renamed to avoid conflict if helper is global
-  final String label;
-  final Widget child;
-  const _FormFieldHelper({required this.label, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: TextStyles.textFieldLabel),
-        const SizedBox(height: 8),
-        child,
-      ],
     );
   }
 }

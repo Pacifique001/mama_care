@@ -16,6 +16,7 @@ NotificationModel _$NotificationModelFromJson(Map<String, dynamic> json) =>
       isRead: json['isRead'] as bool? ?? false,
       payload: json['payload'] as Map<String, dynamic>?,
       fcmMessageId: json['fcmMessageId'] as String?,
+      isScheduled: json['isScheduled'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$NotificationModelToJson(NotificationModel instance) =>
@@ -26,6 +27,7 @@ Map<String, dynamic> _$NotificationModelToJson(NotificationModel instance) =>
       'body': instance.body,
       'timestamp': instance.timestamp,
       'isRead': instance.isRead,
+      'isScheduled': instance.isScheduled,
       'payload': instance.payload,
       'fcmMessageId': instance.fcmMessageId,
     };

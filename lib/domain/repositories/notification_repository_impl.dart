@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'dart:convert'; // For encoding/decoding payload
 import 'dart:io'; // For Platform checks
 import 'dart:math'; // For Random fallback ID
-//import 'package:flutter/foundation.dart'; // For @pragma
+import 'package:flutter/foundation.dart'; // For @pragma
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -11,72 +12,139 @@ import 'package:mama_care/data/local/database_helper.dart';
 import 'package:mama_care/data/repositories/notification_repository.dart'; // Interface path
 import 'package:mama_care/domain/entities/notification_model.dart'; // Your notification entity
 import 'package:mama_care/core/error/exceptions.dart'; // Your custom exceptions
+import 'package:mama_care/injection.dart';
 import 'package:sqflite/sqflite.dart' as sqflite; // Import sqflite with prefix
 import 'package:mama_care/navigation/navigation_service.dart'; // Import static navigation service
 import 'package:mama_care/navigation/router.dart'; // Import route constants if needed
 import 'package:firebase_auth/firebase_auth.dart'; // Import FirebaseAuth
+import 'package:timezone/timezone.dart' as tz; // Import timezone
+import 'package:timezone/data/latest_all.dart'
+    as tz_data; // Import timezone data
+// Use flutter_timezone if flutter_native_timezone is deprecated or causes issues
+// import 'package:flutter_native_timezone/flutter_native_timezone.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 // --- Background Message Handler ---
+// Needs to be a top-level function or static method
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-  final logger = Logger(printer: SimplePrinter());
-  logger.i("Handling a background message: ${message.messageId}");
-  final dbHelper = DatabaseHelper();
+void notificationTapBackground(NotificationResponse notificationResponse) {
+  // IMPORTANT: This function must be static or top-level.
+  // Keep this function simple. Avoid complex logic or UI updates.
+  // Primarily used for logging or storing minimal data for later processing.
+  final logger = Logger(
+    printer: SimplePrinter(printTime: true),
+  ); // Create basic logger
 
-  try {
-      await dbHelper.database;
-      await _saveBackgroundNotification(dbHelper, message, logger);
-  } on sqflite.DatabaseException catch (e, stackTrace) {
-     logger.e("Background DB Error saving notification", error: e, stackTrace: stackTrace);
-  } catch (e, stackTrace) {
-     logger.e("Error handling background message", error: e, stackTrace: stackTrace);
+  logger.i('Background Notification Tapped (Terminated State)');
+  logger.i('  ID: ${notificationResponse.id}');
+  logger.i('  Action ID: ${notificationResponse.actionId}');
+  logger.i('  Payload: ${notificationResponse.payload}');
+  if (notificationResponse.input?.isNotEmpty ?? false) {
+    logger.i('  Input: ${notificationResponse.input}');
   }
 }
 
-/// Helper to save notification in background
-Future<void> _saveBackgroundNotification(DatabaseHelper dbHelper, RemoteMessage message, Logger logger) async {
-   logger.d("Saving background notification to DB: ${message.messageId}");
-   final notificationData = message.notification;
-   final dataPayload = message.data;
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Initialize Firebase if not already done (required for background isolate)
+  // Note: Ensure Firebase initialization options are available if needed.
+  // Often, this requires passing options or ensuring default init works.
+  await Firebase.initializeApp();
+  // It's hard to use dependency injection reliably in background isolates.
+  // Manually instantiate logger and DB helper here.
+  final logger = Logger(
+    printer: SimplePrinter(printTime: true),
+  ); // Simple printer for background
+  final dbHelper = DatabaseHelper(); // Assuming default constructor works
 
-   if (notificationData == null && (dataPayload['title'] == null || dataPayload['body'] == null)) {
-       logger.w("Received background message without notification or relevant data payload. Skipping save.");
-       return;
-   }
+  logger.i("Handling a background message: ${message.messageId}");
 
-    String title = dataPayload['title'] as String? ?? notificationData?.title ?? 'Notification';
-    String body = dataPayload['body'] as String? ?? notificationData?.body ?? '';
-    String id;
-    if (message.messageId != null && message.messageId!.isNotEmpty) { id = message.messageId!; }
-    else { final ts = DateTime.now().millisecondsSinceEpoch; final rand = Random().nextInt(99999).toString().padLeft(5, '0'); id = '${ts}_$rand'; logger.w("FCM message ID was null, generated fallback ID: $id"); }
-    int timestamp = message.sentTime?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch;
-
-   try {
-     // Create Model instance to use its toMap() method
-     final notificationToSave = NotificationModel(
-        id: id,
-        userId: null, // Cannot get userId reliably here
-        title: title,
-        body: body,
-        timestamp: timestamp,
-        isRead: false,
-        payload: dataPayload.isNotEmpty ? dataPayload : null, // Assign map directly
-        fcmMessageId: message.messageId,
-     );
-     await dbHelper.insert(
-        'notifications',
-        notificationToSave.toMap(), // Use toMap which encodes payload
-        conflictAlgorithm: sqflite.ConflictAlgorithm.replace
-     );
-     logger.i("Background notification saved: $id");
-   } on sqflite.DatabaseException catch (e, stackTrace) {
-      logger.e("Background DB Error saving notification $id", error: e, stackTrace: stackTrace);
-   } catch(e, stackTrace) {
-     logger.e("Failed to save background notification $id to DB", error: e, stackTrace: stackTrace);
-   }
+  try {
+    // Ensure database is initialized (may need to call dbHelper.initDb explicitly if needed)
+    // await dbHelper.initDb(); // Uncomment if explicit init is required for background
+    await dbHelper.database; // Accessing getter might initialize it
+    await _saveBackgroundNotification(dbHelper, message, logger);
+  } catch (e, stackTrace) {
+    logger.e(
+      "Error handling background message",
+      error: e,
+      stackTrace: stackTrace,
+    );
+  }
 }
 
+/// Helper to save notification in background isolate
+Future<void> _saveBackgroundNotification(
+  DatabaseHelper dbHelper,
+  RemoteMessage message,
+  Logger logger,
+) async {
+  logger.d("Background: Saving notification to DB: ${message.messageId}");
+  final notificationData = message.notification;
+  final dataPayload = message.data;
+
+  // Determine Title and Body (prefer data payload if available)
+  final String title =
+      dataPayload['title'] as String? ??
+      notificationData?.title ??
+      'Notification';
+  final String body =
+      dataPayload['body'] as String? ?? notificationData?.body ?? '';
+
+  // Skip saving if no meaningful content
+  if (title == 'Notification' && body == '') {
+    logger.w(
+      "Background: Received message without meaningful content. Skipping save.",
+    );
+    return;
+  }
+
+  // Generate a unique ID if FCM doesn't provide one
+  String id = message.messageId ?? '';
+  if (id.isEmpty) {
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final rand = Random().nextInt(99999).toString().padLeft(5, '0');
+    id = '${ts}_$rand';
+    logger.w("Background: FCM message ID was null, generated fallback ID: $id");
+  }
+
+  final int timestamp =
+      message.sentTime?.millisecondsSinceEpoch ??
+      DateTime.now().millisecondsSinceEpoch;
+  final String? userId =
+      FirebaseAuth.instance.currentUser?.uid; // Attempt to get current user
+
+  try {
+    final notificationToSave = NotificationModel(
+      id: id,
+      userId:
+          userId, // Might be null if user isn't logged in when background message arrives
+      title: title,
+      body: body,
+      timestamp: timestamp,
+      isRead: false,
+      payload: dataPayload.isNotEmpty ? dataPayload : null,
+      fcmMessageId: message.messageId,
+      isScheduled:
+          dataPayload['scheduled_time'] !=
+          null, // Check if it was scheduled via data payload
+    );
+
+    await dbHelper.insert(
+      'notifications', // Table name constant might be better
+      notificationToSave.toMap(), // Uses model's toMap
+      conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
+    );
+    logger.i("Background: Notification saved: $id");
+  } catch (e, stackTrace) {
+    logger.e(
+      "Background: Failed to save notification $id to DB",
+      error: e,
+      stackTrace: stackTrace,
+    );
+    // Cannot easily throw exceptions here as it's a different isolate
+  }
+}
 
 // --- Notification Repository Implementation ---
 @Injectable(as: NotificationRepository)
@@ -88,447 +156,840 @@ class NotificationRepositoryImpl implements NotificationRepository {
   final FirebaseAuth _auth; // Injected FirebaseAuth
 
   // Define Android Notification Channel
+  // Ensure this ID matches what's used in AndroidManifest.xml for high importance if needed
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
-    'mama_care_high_importance_channel', // Unique ID
-    'MamaCare High Importance', // Name visible to user
-    description: 'Channel for important MamaCare notifications.', // Description
-    importance: Importance.high,
-    playSound: true,
+    'mama_care_high_importance_channel', // Unique channel ID
+    'MamaCare Alerts', // Channel name visible in app settings
+    description:
+        'Channel for important MamaCare notifications and alerts.', // Channel description
+    importance: Importance.high, // High importance for visibility
+    playSound: true, // Play sound by default for this channel
+    // sound: RawResourceAndroidNotificationSound('notification_sound'), // Optional: custom sound
+    enableVibration: true,
   );
 
-  bool _isInitialized = false; // Initialization flag
+  bool _isInitialized = false; // Prevent multiple initializations
 
-  // Constructor with injected dependencies
   NotificationRepositoryImpl(
     this._firebaseMessaging,
     this._databaseHelper,
     this._logger,
-    this._auth, // Receive injected FirebaseAuth
-  ) : _localNotifications = FlutterLocalNotificationsPlugin();
+    this._auth,
+  ) : _localNotifications =
+          FlutterLocalNotificationsPlugin(); // Initialize plugin instance
 
   @override
   Future<void> initialize() async {
-     if (_isInitialized) {
-        _logger.d("NotificationRepository already initialized.");
-        return;
-     }
-     _logger.i("Initializing NotificationRepository...");
-    await _initializeLocalNotifications();
-    await _configureFirebaseMessaging();
-    await _handleInitialMessage();
-    _isInitialized = true;
-     _logger.i("NotificationRepository initialized successfully.");
+    if (_isInitialized) {
+      _logger.d("NotificationRepository already initialized. Skipping.");
+      return;
+    }
+    _logger.i("Initializing NotificationRepository...");
+
+    try {
+      await _configureLocalTimeZone(); // Configure timezone first
+      await _initializeLocalNotifications(); // Setup local notifications plugin
+      await _configureFirebaseMessaging(); // Setup FCM listeners
+      await _handleInitialMessage(); // Check if app opened from terminated state notification
+      _isInitialized = true;
+      _logger.i("NotificationRepository initialized successfully.");
+    } catch (e, s) {
+      _logger.e(
+        "NotificationRepository initialization failed!",
+        error: e,
+        stackTrace: s,
+      );
+      // Optionally rethrow or handle initialization failure
+      throw ConfigurationException(
+        "Failed to initialize notifications",
+        cause: e,
+        stackTrace: s,
+      );
+    }
   }
 
-  /// Initializes FlutterLocalNotifications plugin and platform settings.
-  Future<void> _initializeLocalNotifications() async {
-     _logger.d("Initializing FlutterLocalNotifications...");
-    const AndroidInitializationSettings androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher'); // Use default app icon
+  /// Configures the local timezone for scheduling.
+  Future<void> _configureLocalTimeZone() async {
+    if (kIsWeb || !(Platform.isAndroid || Platform.isIOS || Platform.isMacOS)) {
+      _logger.d("Timezone configuration skipped for this platform.");
+      return; // Timezone setup primarily for mobile scheduling
+    }
+    try {
+      tz_data.initializeTimeZones(); // Load timezone database
+      final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+      _logger.i("Local timezone configured: $timeZoneName");
+    } catch (e, s) {
+      _logger.e(
+        "Could not configure local timezone, using UTC fallback.",
+        error: e,
+        stackTrace: s,
+      );
+      try {
+        // Fallback to UTC if detection fails
+        tz.setLocalLocation(tz.getLocation('Etc/UTC'));
+      } catch (fallbackError) {
+        _logger.f(
+          "FATAL: Could not set UTC fallback timezone.",
+          error: fallbackError,
+        );
+      }
+    }
+  }
 
-    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
+  /// Initializes FlutterLocalNotifications plugin.
+  Future<void> _initializeLocalNotifications() async {
+    _logger.d("Initializing FlutterLocalNotifications...");
+    // Use a consistent icon name (e.g., 'ic_stat_notification' or 'app_icon')
+    // This should match an icon placed in android/app/src/main/res/drawable-*dpi folders
+    const AndroidInitializationSettings androidSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    // Request default permissions on iOS/macOS during init
+    const DarwinInitializationSettings
+    darwinSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
       requestSoundPermission: true,
+      // defaultPresentAlert: true, // Defaults handled by requestPermission
+      // defaultPresentBadge: true,
+      // defaultPresentSound: true,
+      //onDidReceiveLocalNotification:
+      // _onDidReceiveLocalNotification, // Optional: Handle older iOS foreground notifications
     );
 
+    // Initialize the plugin
     await _localNotifications.initialize(
       const InitializationSettings(
         android: androidSettings,
-        iOS: iosSettings,
+        iOS: darwinSettings,
+        macOS: darwinSettings,
       ),
+      // Callback when notification response is received (app in foreground/background)
       onDidReceiveNotificationResponse: _onNotificationTapped,
-      onDidReceiveBackgroundNotificationResponse: _onNotificationTapped,
+      // Callback when notification response is received (app terminated) - Use same handler
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+      // Handles terminated taps
     );
 
+    // Create the Android notification channel
     if (Platform.isAndroid) {
-      await _localNotifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(_channel);
-       _logger.d("Android Notification Channel ensured.");
+      try {
+        await _localNotifications
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >()
+            ?.createNotificationChannel(_channel);
+        _logger.d("Android Notification Channel '${_channel.id}' ensured.");
+      } catch (e, s) {
+        _logger.e(
+          "Failed to create Android notification channel",
+          error: e,
+          stackTrace: s,
+        );
+      }
+    }
+  }
+
+  // Optional: Callback for older iOS versions when notification received while app is in foreground
+  static void _onDidReceiveLocalNotification(
+    int id,
+    String? title,
+    String? body,
+    String? payload,
+  ) async {
+    // You could display an alert or update UI here for older iOS
+    locator<Logger>().i(
+      "Foreground local notification received on older iOS: $id - $title",
+    );
+    // Maybe trigger the tap logic if payload exists?
+    if (payload != null && payload.isNotEmpty) {
+      try {
+        final Map<String, dynamic> data = jsonDecode(payload);
+        _onNotificationTappedLogic(data); // Trigger navigation/action
+      } catch (e) {
+        /* handle error */
+      }
     }
   }
 
   /// Configures Firebase Messaging listeners and token handling.
   Future<void> _configureFirebaseMessaging() async {
-     _logger.d("Configuring Firebase Messaging listeners...");
+    _logger.d("Configuring Firebase Messaging listeners...");
+    // Set the background handler (must be top-level or static)
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    if (Platform.isIOS) {
-      // Request permissions explicitly for iOS
-      await _firebaseMessaging.requestPermission(
-         alert: true, badge: true, sound: true, provisional: false,
-      );
-    }
+    // Request permissions (mainly for iOS, Android Tiramisu+)
+    NotificationSettings settings = await _firebaseMessaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+      provisional: false,
+      // Other options like carPlay, criticalAlert can be added if needed
+    );
+    _logger.i(
+      "FCM Permissions requested. Authorization status: ${settings.authorizationStatus}",
+    );
 
+    // Listen for foreground messages
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+    // Listen for messages opened when app is in background
     FirebaseMessaging.onMessageOpenedApp.listen(_handleOpenedApp);
 
+    // Handle token registration and refresh
     await _registerDeviceToken();
     _firebaseMessaging.onTokenRefresh.listen((newToken) async {
       _logger.i("FCM Token refreshed.");
       await _saveDeviceToken(newToken);
+      // Optionally: Send the new token to your backend server
     });
   }
 
   /// Gets and saves the initial FCM device token.
   Future<void> _registerDeviceToken() async {
     try {
-        String? token = await _firebaseMessaging.getToken();
-         _logger.d("Firebase initial token fetched: ${token != null}");
-        await _saveDeviceToken(token!);
-          } catch (e, stackTrace) {
-       _logger.e("Failed to get initial FCM token", error: e, stackTrace: stackTrace);
-       // Consider throwing ConfigurationException if token is essential
+      String? token = await _firebaseMessaging.getToken();
+      if (token != null) {
+        _logger.d("Firebase initial token fetched successfully.");
+        await _saveDeviceToken(token);
+        // Optionally: Send token to your backend server here
+      } else {
+        _logger.w("Firebase initial token was null.");
+      }
+    } catch (e, s) {
+      _logger.e("Failed to get initial FCM token", error: e, stackTrace: s);
     }
   }
 
-  /// Saves the FCM token to local DB, associating with the current user if logged in.
+  /// Saves the FCM token locally, associating with user if logged in.
   Future<void> _saveDeviceToken(String token) async {
-     _logger.d("Saving FCM token to local DB...");
-     final String? userId = _auth.currentUser?.uid; // Use injected _auth
-     try {
-        await _databaseHelper.insert('fcm_tokens', {
-           'token': token,
-           'timestamp': DateTime.now().millisecondsSinceEpoch,
-           'isActive': 1,
-           'userId': userId, // Associate with user
-         }, conflictAlgorithm: sqflite.ConflictAlgorithm.replace); // Use prefix
-        _logger.i("FCM token saved locally ${userId != null ? 'for user $userId' : 'globally'}.");
-     } on sqflite.DatabaseException catch (e, stackTrace) {
-         _logger.e("Failed to save FCM token locally (DB Error)", error: e, stackTrace: stackTrace);
-     } catch (e, stackTrace) {
-         _logger.e("Failed to save FCM token locally (Other Error)", error: e, stackTrace: stackTrace);
-     }
+    _logger.d("Saving FCM token to local DB...");
+    final String? userId = _auth.currentUser?.uid;
+    try {
+      // Use the specific table name defined for DatabaseHelper
+      await _databaseHelper.saveFcmToken(
+        token,
+        userId,
+      ); // Assuming DB Helper has this specific method
+      _logger.i(
+        "FCM token saved locally ${userId != null ? 'for user $userId' : 'globally'}.",
+      );
+    } catch (e, s) {
+      _logger.e("Failed to save FCM token locally", error: e, stackTrace: s);
+      // Don't throw, just log. Token saving failure shouldn't crash the app.
+    }
   }
 
-  /// Checks if the app was opened from terminated state via notification.
+  /// Checks if app opened from terminated state via notification.
   Future<void> _handleInitialMessage() async {
     final message = await _firebaseMessaging.getInitialMessage();
     if (message != null) {
-       _logger.i("App opened from terminated state via notification: ${message.messageId}");
-      await _processNotificationAndData(message, markAsRead: true);
-       _onNotificationTappedLogic(message.data);
+      _logger.i(
+        "App opened from terminated state via FCM notification: ${message.messageId}",
+      );
+      await _processNotificationAndData(
+        message,
+        markAsRead: true,
+      ); // Save and mark read
+      _onNotificationTappedLogic(message.data); // Trigger action
     }
   }
 
-  /// Handles foreground FCM messages: Process, Save, Show Local Notification.
+  /// Handles foreground FCM: Process, Save, Show Local Notification.
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
     _logger.i("Foreground FCM message received: ${message.messageId}");
-    await _processNotificationAndData(message); // Save notification to DB
-    _showLocalNotification(message); // Show local notification overlay
+    // Always save the notification data
+    await _processNotificationAndData(
+      message,
+      markAsRead: false,
+    ); // Save as unread
+    // Display a local notification to alert the user
+    _showLocalNotification(message);
   }
 
-  /// Handles messages tapped when app is in background (not terminated).
+  /// Handles messages tapped when app is in background.
   Future<void> _handleOpenedApp(RemoteMessage message) async {
-    _logger.i("App opened from background via notification: ${message.messageId}");
-    await _processNotificationAndData(message, markAsRead: true); // Mark as read
-    _onNotificationTappedLogic(message.data); // Trigger action/navigation
+    _logger.i(
+      "App opened from background via FCM notification: ${message.messageId}",
+    );
+    await _processNotificationAndData(
+      message,
+      markAsRead: true,
+    ); // Save and mark read
+    _onNotificationTappedLogic(message.data); // Trigger action
   }
 
-  /// Centralized method to save notification to DB and process data payload.
-  Future<void> _processNotificationAndData(RemoteMessage message, {bool markAsRead = false}) async {
-    _logger.d("Processing notification ${message.messageId}. Mark as read: $markAsRead");
+  /// Saves notification to DB and processes data payload.
+  Future<void> _processNotificationAndData(
+    RemoteMessage message, {
+    required bool markAsRead,
+  }) async {
+    // ... (Implementation from previous answer is generally good) ...
+    // Ensure it uses the correct NotificationModel and toMap()
+    _logger.d(
+      "Processing notification ${message.messageId}. Mark as read: $markAsRead",
+    );
     final notificationPayload = message.notification;
-    final dataPayload = message.data; // This is Map<String, dynamic>
+    final dataPayload = message.data;
 
-    if (notificationPayload == null && (dataPayload['title'] == null || dataPayload['body'] == null)) {
-       _logger.w("Skipping DB save for message ${message.messageId}: No notification or relevant data.");
-       if (dataPayload.isNotEmpty) _processNotificationDataActions(dataPayload);
-       return;
+    final String title =
+        dataPayload['title'] as String? ??
+        notificationPayload?.title ??
+        'Notification';
+    final String body =
+        dataPayload['body'] as String? ?? notificationPayload?.body ?? '';
+
+    if (title == 'Notification' && body == '') {
+      _logger.w(
+        "Skipping DB save for message ${message.messageId}: No content.",
+      );
+      return; // Don't save empty notifications
     }
 
-    // Generate ID if needed
-    String id;
-    if (message.messageId != null && message.messageId!.isNotEmpty) { id = message.messageId!; }
-    else { final ts = DateTime.now().millisecondsSinceEpoch; final rand = Random().nextInt(99999).toString().padLeft(5, '0'); id = '${ts}_$rand'; _logger.w("FCM message ID was null, generated fallback ID: $id"); }
+    String id = message.messageId ?? '';
+    if (id.isEmpty) {
+      final ts = DateTime.now().millisecondsSinceEpoch;
+      final rand = Random().nextInt(99999).toString().padLeft(5, '0');
+      id = '${ts}_$rand';
+    }
 
-    final String title = dataPayload['title'] as String? ?? notificationPayload?.title ?? 'Notification';
-    final String body = dataPayload['body'] as String? ?? notificationPayload?.body ?? '';
-    final int timestamp = message.sentTime?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch;
-    final String? userId = _auth.currentUser?.uid; // Use injected _auth
+    final int timestamp =
+        message.sentTime?.millisecondsSinceEpoch ??
+        DateTime.now().millisecondsSinceEpoch;
+    final String? userId = _auth.currentUser?.uid;
 
-    // Create NotificationModel instance
     final notificationToSave = NotificationModel(
-       id: id,
-       userId: userId,
-       title: title,
-       body: body,
-       timestamp: timestamp,
-       isRead: markAsRead,
-       payload: dataPayload.isNotEmpty ? dataPayload : null, // Assign the Map directly
-       fcmMessageId: message.messageId,
+      id: id,
+      userId: userId,
+      title: title,
+      body: body,
+      timestamp: timestamp,
+      isRead: markAsRead,
+      payload: dataPayload.isNotEmpty ? dataPayload : null,
+      fcmMessageId: message.messageId,
+      isScheduled: dataPayload['scheduled_time'] != null, // Example check
     );
 
     try {
-      // Use model's toMap() method which handles payload JSON encoding
       await _databaseHelper.insert(
         'notifications',
-        notificationToSave.toMap(),
-        conflictAlgorithm: sqflite.ConflictAlgorithm.replace, // Use prefix
+        notificationToSave.toMap(), // Use model's toMap
+        conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
       );
       _logger.d("Notification $id saved to DB for user $userId.");
-    } on sqflite.DatabaseException catch (e, stackTrace) {
-        _logger.e("Failed to save notification $id to DB (DB Error)", error: e, stackTrace: stackTrace);
     } catch (e, stackTrace) {
-       _logger.e("Failed to save notification $id to DB (Other Error)", error: e, stackTrace: stackTrace);
+      _logger.e(
+        "Failed to save notification $id to DB",
+        error: e,
+        stackTrace: stackTrace,
+      );
+      // Don't rethrow here, just log the failure
     }
-
-    // Process data payload actions separately
-     _processNotificationDataActions(dataPayload);
   }
 
   /// Shows a local notification using FlutterLocalNotificationsPlugin.
-  /// THIS METHOD WAS MISSING IN THE PREVIOUS SNIPPET AND IS NOW ADDED BACK.
   void _showLocalNotification(RemoteMessage message) {
     final notification = message.notification;
-    // Use data payload for title/body if notification payload is missing
-    final String title = message.data['title'] as String? ?? notification?.title ?? 'Notification';
-    final String body = message.data['body'] as String? ?? notification?.body ?? '';
+    final String title =
+        message.data['title'] as String? ?? notification?.title ?? 'MamaCare';
+    final String body =
+        message.data['body'] as String? ?? notification?.body ?? '';
 
-    // Only show if there's something to display
-    if (title == 'Notification' && body == '') {
-       _logger.w("Skipping local notification for message ${message.messageId} due to empty content.");
-       return;
+    if (body.isEmpty && title == 'MamaCare') {
+      // Avoid showing empty notifications
+      _logger.w(
+        "Skipping local notification display for message ${message.messageId} due to empty content.",
+      );
+      return;
     }
 
-     _logger.d("Showing local notification for message ${message.messageId}");
-    _localNotifications.show(
-      message.hashCode, // Use message hashcode as unique integer ID
-      title,
-      body,
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          _channel.id,
-          _channel.name,
-          channelDescription: _channel.description,
-          icon: '@mipmap/ic_launcher', // Default app icon
-          importance: Importance.high, // Match channel importance
-          priority: Priority.high, // Match channel priority
+    _logger.d("Showing local notification for message ${message.messageId}");
+    try {
+      _localNotifications.show(
+        message
+            .hashCode, // Use a unique int ID (message hashcode is okay for transient display)
+        title,
+        body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channel.id, // Use the defined channel ID
+            _channel.name,
+            channelDescription: _channel.description,
+            icon: '@mipmap/ic_launcher', // Ensure this icon exists
+            importance: Importance.high,
+            priority: Priority.high,
+            // Add other Android options if needed (e.g., ticker, styleInformation)
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            // sound: 'custom_sound.aiff', // Optional custom sound for iOS
+          ),
         ),
-        iOS: const DarwinNotificationDetails(
-           presentAlert: true, // Ensure alert/sound/badge are shown on iOS
-           presentBadge: true,
-           presentSound: true,
-         ),
-      ),
-      // Pass data payload as JSON string to be available when notification is tapped
-      payload: jsonEncode(message.data),
+        // Encode the data payload to pass it when the notification is tapped
+        payload: message.data.isNotEmpty ? jsonEncode(message.data) : null,
+      );
+    } catch (e, s) {
+      _logger.e("Error showing local notification", error: e, stackTrace: s);
+    }
+  }
+
+  /// Callback when a local notification is tapped.
+  static void _onNotificationTapped(NotificationResponse response) {
+    final Logger logger = locator<Logger>(); // Get logger via locator
+    logger.i(
+      "Local notification tapped. Action: ${response.actionId}, Payload: ${response.payload}",
     );
-  }
-
-
-  /// Callback when a local notification is tapped (foreground, background, terminated).
-  void _onNotificationTapped(NotificationResponse response) {
-     _logger.i("Local notification tapped. Payload: ${response.payload}");
-     if (response.payload != null && response.payload!.isNotEmpty) {
-       try {
-          // Decode the JSON string payload back into a Map
-          final Map<String, dynamic> data = jsonDecode(response.payload!);
-           _onNotificationTappedLogic(data); // Handle navigation/action
-       } catch (e, stackTrace) {
-          _logger.e("Error decoding notification payload", error: e, stackTrace: stackTrace);
-       }
-     }
-  }
-
-   /// Central logic for handling actions when a notification is tapped.
-   void _onNotificationTappedLogic(Map<String, dynamic> data) {
-      _logger.d("Processing notification tap logic with data: $data");
-      final route = data['route'] as String?;
-      final articleId = data['articleId'] as String?;
-      // Extract other potential parameters like 'videoId', 'screenName', etc.
-
-      // Use static NavigationService method for navigation
-      if (route != null) {
-         _logger.i("Navigating to route from notification data: $route");
-         NavigationService.navigateTo(route, arguments: data); // Pass full data map as arguments
-      } else if (articleId != null) {
-         _logger.i("Navigating to article detail from notification data: $articleId");
-          NavigationService.navigateTo(NavigationRoutes.article, arguments: articleId);
+    if (response.payload != null && response.payload!.isNotEmpty) {
+      try {
+        final Map<String, dynamic> data = jsonDecode(response.payload!);
+        _onNotificationTappedLogic(data); // Call central logic handler
+      } catch (e, stackTrace) {
+        logger.e(
+          "Error decoding notification payload",
+          error: e,
+          stackTrace: stackTrace,
+        );
       }
-      // Add more else if blocks for other specific actions based on data payload keys
-      // else if (data['screen'] == 'profile') { ... }
-   }
-
-  /// Processes custom data payload for potential background actions (e.g., data refresh triggers).
-  void _processNotificationDataActions(Map<String, dynamic> data) {
-    _logger.d("Processing notification data payload for actions: $data");
-    // Example: Trigger specific data refresh based on payload key
-    // if (data['refresh_target'] == 'appointments') {
-    //   _logger.i("Notification triggers appointment refresh.");
-    //   locator<DashboardViewModel>().loadAppointments(); // Be careful with direct VM calls here
-    // }
+    }
+    // Handle specific action IDs if needed
+    // if (response.actionId == 'your_action_id') { ... }
   }
 
-  // --- Repository Interface Methods Implementation ---
+  /// Central logic for handling navigation/actions from notification tap data.
+  static void _onNotificationTappedLogic(Map<String, dynamic> data) {
+    final Logger logger = locator<Logger>();
+    logger.d("Processing notification tap logic with data: $data");
+    final String? route = data['route'] as String?;
+    final String? articleId = data['articleId'] as String?;
+    final String? appointmentId = data['appointmentId'] as String?;
+
+    // Use static NavigationService for navigation
+    if (route != null) {
+      logger.i("Navigating to route from notification data: $route");
+      // Pass the whole data map as arguments for flexibility
+      NavigationService.navigateTo(route, arguments: data);
+    } else if (appointmentId != null) {
+      // Prioritize specific actions
+      logger.i("Navigating to appointment detail: $appointmentId");
+      NavigationService.navigateTo(
+        NavigationRoutes.appointmentDetail,
+        arguments: appointmentId,
+      );
+    } else if (articleId != null) {
+      logger.i("Navigating to article detail: $articleId");
+      NavigationService.navigateTo(
+        NavigationRoutes.article,
+        arguments: articleId,
+      );
+    }
+    // Add more else if blocks for other actions (e.g., opening profile, specific feature)
+    else {
+      logger.w(
+        "Notification tapped, but no recognized action/route found in data.",
+      );
+      // Optional: Navigate to a default screen like the dashboard
+      // NavigationService.navigateTo(NavigationRoutes.mainScreen);
+    }
+  }
+
+  // --- Repository Interface Method Implementations ---
 
   @override
   Future<void> saveNotification(NotificationModel notification) async {
-     _logger.d("Repo: Saving notification explicitly: ${notification.id}");
-     final String? currentUserId = _auth.currentUser?.uid;
-     try {
-       final finalNotification = notification.copyWith(userId: notification.userId ?? currentUserId);
-       await _databaseHelper.insert(
-         'notifications', finalNotification.toMap(), // Use toMap
-         conflictAlgorithm: sqflite.ConflictAlgorithm.replace, // Use prefix
-       );
-     } on sqflite.DatabaseException catch (e, stackTrace) {
-        _logger.e("Repo: DB Error saving notification ${notification.id}", error: e, stackTrace: stackTrace);
-       throw DatabaseException("Failed to save notification.", cause: e, stackTrace: stackTrace);
-     } catch (e, stackTrace) {
-        _logger.e("Repo: Error saving notification ${notification.id}", error: e, stackTrace: stackTrace);
-        throw DataProcessingException("Could not save notification.", cause: e, stackTrace: stackTrace);
-     }
+    _logger.d("Repo: Saving notification explicitly: ${notification.id}");
+    final String? currentUserId = _auth.currentUser?.uid;
+    try {
+      final finalNotification = notification.copyWith(
+        userId: notification.userId ?? currentUserId, // Ensure userId is set
+      );
+      await _databaseHelper.insert(
+        'notifications',
+        finalNotification.toMap(), // Use model's toMap
+        conflictAlgorithm: sqflite.ConflictAlgorithm.replace,
+      );
+    } catch (e, stackTrace) {
+      _logger.e(
+        "Repo: Error saving notification ${notification.id}",
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw DatabaseException(
+        "Failed to save notification.",
+        cause: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   @override
   Future<List<NotificationModel>> getNotifications() async {
-     _logger.d("Repo: Fetching notifications from DB...");
-     final String? userId = _auth.currentUser?.uid;
-     if (userId == null) {
-         _logger.w("Repo: User not logged in, returning empty notification list.");
-         return []; // Return empty list if no user logged in
-     }
-     try {
-       final results = await _databaseHelper.query(
-         'notifications',
-         where: 'userId = ?', // Only fetch notifications for the current user
-         whereArgs: [userId],
-         orderBy: 'timestamp DESC',
-       );
-       // Use fromMap (which handles payload decoding)
-       return results.map((map) => NotificationModel.fromMap(map)).toList();
-     } on sqflite.DatabaseException catch (e, stackTrace) {
-        _logger.e("Repo: DB Error fetching notifications", error: e, stackTrace: stackTrace);
-       throw DatabaseException("Failed to load notifications.", cause: e, stackTrace: stackTrace);
-     } catch (e, stackTrace) {
-        _logger.e("Repo: Error fetching notifications", error: e, stackTrace: stackTrace);
-        throw DataProcessingException("Could not process notification data.", cause: e, stackTrace: stackTrace);
-     }
+    _logger.d("Repo: Fetching notifications from DB...");
+    final String? userId = _auth.currentUser?.uid;
+    if (userId == null) {
+      _logger.w("Repo: User not logged in, returning empty notification list.");
+      return [];
+    }
+    try {
+      final results = await _databaseHelper.query(
+        'notifications',
+        where: 'userId = ?', // Fetch only for the current user
+        whereArgs: [userId],
+        orderBy: 'timestamp DESC', // Newest first
+      );
+      // Use NotificationModel.fromMap for data coming from SQLite
+      return results
+          .map((map) {
+            try {
+              return NotificationModel.fromMap(map);
+            } catch (e, s) {
+              _logger.e(
+                "Error parsing notification map ${map['id']}",
+                error: e,
+                stackTrace: s,
+              );
+              return null;
+            }
+          })
+          .whereType<NotificationModel>()
+          .toList(); // Filter out parsing errors
+    } catch (e, stackTrace) {
+      _logger.e(
+        "Repo: Error fetching notifications",
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw DatabaseException(
+        "Failed to load notifications.",
+        cause: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   @override
   Future<void> markNotificationAsRead(String id) async {
-     _logger.d("Repo: Marking notification $id as read.");
-     try {
-       final count = await _databaseHelper.update(
-         'notifications', {'isRead': 1}, where: 'id = ?', whereArgs: [id],
-       );
-       if (count == 0) _logger.w("Repo: Notification $id not found to mark as read.");
-     } on sqflite.DatabaseException catch (e, stackTrace) {
-        _logger.e("Repo: DB Error marking notification $id as read", error: e, stackTrace: stackTrace);
-       throw DatabaseException("Failed to update notification status.", cause: e, stackTrace: stackTrace);
-     } catch (e, stackTrace) {
-        _logger.e("Repo: Error marking notification $id as read", error: e, stackTrace: stackTrace);
-        throw DataProcessingException("Could not update notification.", cause: e, stackTrace: stackTrace);
-     }
+    _logger.d("Repo: Marking notification $id as read.");
+    if (id.isEmpty) return; // Avoid action on empty ID
+    try {
+      final count = await _databaseHelper.update(
+        'notifications',
+        {'isRead': 1}, // 1 for true
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (count == 0)
+        _logger.w("Repo: Notification $id not found to mark as read.");
+    } catch (e, stackTrace) {
+      _logger.e(
+        "Repo: Error marking notification $id as read",
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw DatabaseException(
+        "Failed to update notification status.",
+        cause: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
-   @override
-   Future<void> markAllNotificationsAsRead() async {
-      _logger.d("Repo: Marking all notifications as read.");
-      final String? userId = _auth.currentUser?.uid;
-      if (userId == null) {
-         _logger.w("Repo: Cannot mark all as read, user not logged in.");
-         return;
-      }
-      try {
-        final count = await _databaseHelper.update(
-          'notifications', {'isRead': 1},
-          where: 'isRead = ? AND userId = ?', // Scope to user and unread
-          whereArgs: [0, userId],
-        );
-         _logger.d("Repo: Marked $count notifications as read for user $userId.");
-      } on sqflite.DatabaseException catch (e, stackTrace) {
-         _logger.e("Repo: DB Error marking all notifications as read", error: e, stackTrace: stackTrace);
-        throw DatabaseException("Failed to update notifications.", cause: e, stackTrace: stackTrace);
-      } catch (e, stackTrace) {
-         _logger.e("Repo: Error marking all notifications as read", error: e, stackTrace: stackTrace);
-        throw DataProcessingException("Could not update notifications.", cause: e, stackTrace: stackTrace);
-      }
-   }
+  @override
+  Future<void> markAllNotificationsAsRead() async {
+    final String? userId = _auth.currentUser?.uid;
+    if (userId == null) {
+      /* ... handle no user ... */
+      return;
+    }
+    _logger.d("Repo: Marking all notifications as read for user $userId.");
+    try {
+      final count = await _databaseHelper.update(
+        'notifications',
+        {'isRead': 1},
+        where: 'isRead = ? AND userId = ?',
+        whereArgs: [0, userId], // Mark only unread (0) for the specific user
+      );
+      _logger.d("Repo: Marked $count notifications as read for user $userId.");
+    } catch (e, stackTrace) {
+      _logger.e(
+        "Repo: Error marking all notifications as read",
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw DatabaseException(
+        "Failed to update notifications.",
+        cause: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
 
   @override
   Future<int> getUnreadNotificationCount() async {
-     _logger.d("Repo: Getting unread notification count...");
-      final String? userId = _auth.currentUser?.uid;
-      if (userId == null) {
-         _logger.w("Repo: Cannot get unread count, user not logged in.");
-         return 0;
-      }
-     try {
-       final whereClause = 'isRead = ? AND userId = ?';
-       final whereArgs = [0, userId];
-       // Use count specific query if DatabaseHelper supports it, otherwise use rawQuery
-       final countResult = await _databaseHelper.rawQuery(
-           'SELECT COUNT(*) as count FROM notifications WHERE $whereClause', whereArgs);
+    final String? userId = _auth.currentUser?.uid;
+    if (userId == null) return 0;
+    _logger.d("Repo: Getting unread notification count for user $userId...");
+    try {
+      // Use the specific count method from DatabaseHelper if available
+      // final count = await _databaseHelper.count('notifications', where: 'isRead = ? AND userId = ?', whereArgs: [0, userId]);
+      // return count;
 
-       if (countResult.isNotEmpty) {
-          return countResult.first['count'] as int? ?? 0;
-       }
-       return 0;
-     } on sqflite.DatabaseException catch (e, stackTrace) {
-        _logger.e("Repo: DB Error getting unread count", error: e, stackTrace: stackTrace);
-        return 0; // Return 0 on DB error
-     } catch (e, stackTrace) {
-         _logger.e("Repo: Error getting unread count", error: e, stackTrace: stackTrace);
-        return 0; // Return 0 on other errors
-     }
+      // Alternative using rawQuery:
+      final countResult = await _databaseHelper.rawQuery(
+        'SELECT COUNT(*) as count FROM notifications WHERE isRead = ? AND userId = ?',
+        [0, userId],
+      );
+      final count =
+          sqflite.Sqflite.firstIntValue(countResult) ?? 0; // Use sqflite helper
+      _logger.d("Repo: Unread count is $count for user $userId.");
+      return count;
+    } catch (e, stackTrace) {
+      _logger.e(
+        "Repo: Error getting unread count",
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return 0;
+    }
   }
 
   @override
   Future<void> deleteNotification(String id) async {
-     _logger.d("Repo: Deleting notification $id.");
-     try {
-       final count = await _databaseHelper.delete(
-         'notifications', where: 'id = ?', whereArgs: [id],
-       );
-        if (count == 0) _logger.w("Repo: Notification $id not found for deletion.");
-     } on sqflite.DatabaseException catch (e, stackTrace) {
-        _logger.e("Repo: DB Error deleting notification $id", error: e, stackTrace: stackTrace);
-       throw DatabaseException("Failed to delete notification.", cause: e, stackTrace: stackTrace);
-     } catch (e, stackTrace) {
-         _logger.e("Repo: Error deleting notification $id", error: e, stackTrace: stackTrace);
-         throw DataProcessingException("Could not delete notification.", cause: e, stackTrace: stackTrace);
-     }
+    _logger.d("Repo: Deleting notification $id.");
+    if (id.isEmpty) return;
+    try {
+      final count = await _databaseHelper.delete(
+        'notifications',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      if (count == 0)
+        _logger.w("Repo: Notification $id not found for deletion.");
+    } catch (e, stackTrace) {
+      _logger.e(
+        "Repo: Error deleting notification $id",
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw DatabaseException(
+        "Failed to delete notification.",
+        cause: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   @override
   Future<void> subscribeToTopic(String topic) async {
-     _logger.i("Repo: Subscribing to FCM topic: $topic");
-     try { await _firebaseMessaging.subscribeToTopic(topic); _logger.d("Repo: Subscribed OK to topic: $topic"); }
-     catch (e, stackTrace) { _logger.e("Repo: Failed to subscribe to topic $topic", error: e, stackTrace: stackTrace); }
+    _logger.i("Repo: Subscribing to FCM topic: $topic");
+    try {
+      await _firebaseMessaging.subscribeToTopic(topic);
+      _logger.d("Repo: Subscribed OK to topic: $topic");
+    } catch (e, s) {
+      _logger.e(
+        "Repo: Failed to subscribe to topic $topic",
+        error: e,
+        stackTrace: s,
+      );
+      // Optionally rethrow as NetworkException or specific FCMException
+    }
   }
 
   @override
   Future<void> unsubscribeFromTopic(String topic) async {
-      _logger.i("Repo: Unsubscribing from FCM topic: $topic");
-      try { await _firebaseMessaging.unsubscribeFromTopic(topic); _logger.d("Repo: Unsubscribed OK from topic: $topic"); }
-      catch (e, stackTrace) { _logger.e("Repo: Failed to unsubscribe from topic $topic", error: e, stackTrace: stackTrace); }
+    _logger.i("Repo: Unsubscribing from FCM topic: $topic");
+    try {
+      await _firebaseMessaging.unsubscribeFromTopic(topic);
+      _logger.d("Repo: Unsubscribed OK from topic: $topic");
+    } catch (e, s) {
+      _logger.e(
+        "Repo: Failed to unsubscribe from topic $topic",
+        error: e,
+        stackTrace: s,
+      );
+    }
   }
 
   @override
   Future<String?> getDeviceToken() async {
-     _logger.d("Repo: Getting active device token from local DB...");
-     try {
-       final results = await _databaseHelper.query( 'fcm_tokens', where: 'isActive = ?', whereArgs: [1], orderBy: 'timestamp DESC', limit: 1, );
-       final token = results.isNotEmpty ? results.first['token'] as String? : null;
-       _logger.d("Repo: Found device token in DB: ${token != null}");
-       return token;
-     } on sqflite.DatabaseException catch (e, stackTrace) { _logger.e("Repo: DB Error getting device token", error: e, stackTrace: stackTrace); return null; }
-     catch (e, stackTrace) { _logger.e("Repo: Error getting device token", error: e, stackTrace: stackTrace); return null; }
+    // This should ideally fetch from your local DB where you saved it
+    _logger.d("Repo: Getting active device token from FCM...");
+    try {
+      // Getting token directly from FCM might be simpler if local storage is complex
+      String? token = await _firebaseMessaging.getToken();
+      _logger.d("Repo: Fetched current FCM token: ${token != null}");
+      return token;
+    } catch (e, s) {
+      _logger.e(
+        "Repo: Error getting FCM device token",
+        error: e,
+        stackTrace: s,
+      );
+      return null;
+    }
   }
 
+  /// Sends a local notification immediately and saves it to the DB.
   @override
   Future<void> sendNotification(Map<String, dynamic> data) async {
-     _logger.e("Repo: Client-side sending of notifications is not supported.");
-    throw UnimplementedFeatureException('Client-side notification sending');
+    _logger.d("Repo: Sending/scheduling local notification with data: $data");
+
+    String title = data['title'] as String? ?? 'MamaCare Notification';
+    String body = data['body'] as String? ?? '';
+    Map<String, dynamic>? payload =
+        data['payload']
+            as Map<String, dynamic>?; // Assume payload is already a map
+    int notificationId =
+        data['notificationId'] as int? ??
+        DateTime.now().millisecondsSinceEpoch %
+            2147483647; // Use hash or timestamp modulo max int
+
+    try {
+      // Schedule for immediate display
+      await _localNotifications.show(
+        notificationId,
+        title,
+        body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channel.id,
+            _channel.name,
+            channelDescription: _channel.description,
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher', // Ensure this icon exists
+            // styleInformation: BigTextStyleInformation(body), // Optional: Show full body text
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentSound: true,
+            presentBadge: true,
+            presentAlert: true,
+          ),
+        ),
+        payload:
+            payload != null
+                ? jsonEncode(payload)
+                : null, // Encode payload for local notif
+      );
+      _logger.i("Local notification shown with ID: $notificationId");
+
+      // Also save to local database
+      final notification = NotificationModel(
+        id: notificationId.toString(), // Use the same ID as string
+        userId: _auth.currentUser?.uid, // Associate with user if logged in
+        title: title,
+        body: body,
+        timestamp:
+            DateTime.now()
+                .millisecondsSinceEpoch, // Time it was processed/saved
+        isRead: false, // Initially unread
+        payload: payload, // Store the map directly
+        isScheduled: false, // This is not a scheduled notification
+      );
+      await saveNotification(notification); // Use the repo's save method
+    } catch (e, s) {
+      _logger.e(
+        "Repo: Failed to send/save local notification",
+        error: e,
+        stackTrace: s,
+      );
+      // Decide if this should throw or just log
+    }
   }
 
   @override
+  Future<void> scheduleNotification({
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+    Map<String, dynamic>? payload,
+    int? notificationId,
+  }) async {
+    final id =
+        notificationId ?? scheduledDate.millisecondsSinceEpoch % 2147483647;
+    _logger.d("Repo: Scheduling notification $id for $scheduledDate");
+
+    try {
+      if (scheduledDate.isBefore(DateTime.now())) {
+        /* ... handle past date ... */
+        return;
+      }
+
+      final tzScheduledDate = tz.TZDateTime.from(scheduledDate, tz.local);
+      _logger.d(
+        "Repo: Scheduling using TZDateTime: $tzScheduledDate (local zone: ${tz.local.name})",
+      );
+
+      await _localNotifications.zonedSchedule(
+        id,
+        title,
+        body,
+        tzScheduledDate,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channel.id,
+            _channel.name,
+            channelDescription: _channel.description,
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: '@mipmap/ic_launcher',
+          ),
+          iOS: const DarwinNotificationDetails(
+            presentSound: true,
+            presentBadge: true,
+            presentAlert: true,
+          ),
+        ),
+        payload: payload != null ? jsonEncode(payload) : null,
+        // --- CORRECTED PARAMETERS ---
+        androidScheduleMode:
+            AndroidScheduleMode
+                .exactAllowWhileIdle, // Use this instead of deprecated ones
+        // Remove uiLocalNotificationDateInterpretation
+        // Use matchDateTimeComponents carefully based on need:
+        // matchDateTimeComponents: DateTimeComponents.time, // For daily repeating at specific time
+        matchDateTimeComponents: null, // For one-time exact schedule
+        // --------------------------
+      );
+
+      // Save metadata to database
+      final notification = NotificationModel(
+        id: id.toString(),
+        userId: _auth.currentUser?.uid,
+        title: title,
+        body: body,
+        timestamp: scheduledDate.millisecondsSinceEpoch,
+        isRead: false,
+        payload: payload,
+        isScheduled: true,
+      );
+      await saveNotification(notification);
+      _logger.i(
+        "Repo: Notification $id scheduled successfully for $scheduledDate.",
+      );
+    } catch (e, stackTrace) {
+      _logger.e(
+        "Repo: Failed to schedule notification $id",
+        error: e,
+        stackTrace: stackTrace,
+      );
+      throw DomainException(
+        "Failed to schedule notification.",
+        cause: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  // This method remains mainly for completeness, the View should call initialize()
+  @override
   Future<void> initializeNotifications() async {
-     _logger.d("Repo: initializeNotifications called.");
-     if (!_isInitialized) { await initialize(); }
+    _logger.d(
+      "Repo: initializeNotifications called (checking if already initialized).",
+    );
+    if (!_isInitialized) {
+      await initialize();
+    }
   }
 }

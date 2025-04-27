@@ -7,13 +7,13 @@ part of 'photo.dart';
 // **************************************************************************
 
 Photo _$PhotoFromJson(Map<String, dynamic> json) => Photo(
-  height: (json['height'] as num).toInt(),
-  photoReference: json['photoReference'] as String,
-  width: (json['width'] as num).toInt(),
+  height: (json['height'] as num?)?.toInt(),
+  photoReference: json['photo_reference'] as String,
+  width: (json['width'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$PhotoToJson(Photo instance) => <String, dynamic>{
   'height': instance.height,
-  'photoReference': instance.photoReference,
+  'photo_reference': instance.photoReference,
   'width': instance.width,
 };

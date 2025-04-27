@@ -1,176 +1,193 @@
 // lib/utils/text_styles.dart
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart'; // Example: Using Google Fonts
-import 'package:sizer/sizer.dart'; // Assuming you use sizer for responsive fonts
-import 'package:mama_care/utils/app_colors.dart'; // Assuming you have AppColors
+import 'package:google_fonts/google_fonts.dart';
+import 'package:sizer/sizer.dart';
+import 'package:mama_care/utils/app_colors.dart';
 
-/// Centralized TextStyles for the MamaCare App.
-/// Uses GoogleFonts (example) and Sizer for responsiveness.
 class TextStyles {
-  // Private constructor to prevent instantiation
   const TextStyles._();
 
-  // --- Define Base Font Family ---
-  // Choose your primary font. Ensure it's added to pubspec.yaml and assets/fonts if needed.
-  // static final String _primaryFontFamily = GoogleFonts.lato().fontFamily ?? 'Roboto';
-  static final String _primaryFontFamily = GoogleFonts.poppins().fontFamily ?? 'Roboto'; // Example with Poppins
+  static final String _primaryFontFamily =
+      GoogleFonts.poppins().fontFamily ?? 'Roboto';
 
   // --- Headline Styles ---
-
-  /// Large headline, e.g., for major screen titles.
   static final TextStyle headline1 = TextStyle(
     fontFamily: _primaryFontFamily,
-    fontSize: 24.sp, // Responsive size
+    fontSize: 24.sp,
     fontWeight: FontWeight.bold,
-    color: AppColors.textDark, // Use theme color
+    color: AppColors.textDark,
   );
-
-  /// Medium headline, e.g., for section titles.
   static final TextStyle headline2 = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 20.sp,
-    fontWeight: FontWeight.w600, // Semi-bold
+    fontWeight: FontWeight.w600,
     color: AppColors.textDark,
   );
 
   // --- Title Styles ---
-
-  /// Standard title style, e.g., AppBar titles, card titles.
   static final TextStyle title = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 16.sp,
     fontWeight: FontWeight.w600,
     color: AppColors.textDark,
   );
-
-  /// Title style specifically for cards.
   static final TextStyle titleCard = TextStyle(
     fontFamily: _primaryFontFamily,
-    fontSize: 15.sp, // Slightly smaller for cards
+    fontSize: 15.sp,
     fontWeight: FontWeight.bold,
-    color: AppColors.primary, // Example: Use primary color
+    color: AppColors.primary,
   );
-
-  /// White title for use on dark backgrounds.
   static final TextStyle titleWhite = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 16.sp,
     fontWeight: FontWeight.w600,
-    color: Colors.white, // White color
+    color: Colors.white,
+  );
+  // ADDED: titleBold
+  static final TextStyle titleBold = TextStyle(
+    fontFamily: _primaryFontFamily,
+    fontSize: 16.sp,
+    fontWeight: FontWeight.bold,
+    color: AppColors.textDark,
   );
 
   // --- Body Text Styles ---
-
-  /// Standard body text.
   static final TextStyle body = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 13.sp,
     fontWeight: FontWeight.normal,
     color: AppColors.textDark,
-    height: 1.5, // Line height for readability
+    height: 1.5,
   );
-
-    /// Slightly bolder body text.
   static final TextStyle bodyBold = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 13.sp,
-    fontWeight: FontWeight.w600, // Semi-bold
+    fontWeight: FontWeight.w600,
     color: AppColors.textDark,
     height: 1.5,
   );
-
-
-  /// Body text with a standard dark color (explicit).
   static final TextStyle bodyBlack = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 13.sp,
     fontWeight: FontWeight.normal,
-    color: AppColors.textDark, // Explicit dark color
+    color: AppColors.textDark,
     height: 1.5,
   );
-
-  /// Body text with a grey color for secondary information.
   static final TextStyle bodyGrey = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 13.sp,
     fontWeight: FontWeight.normal,
-    color: AppColors.textGrey, // Use theme grey color
+    color: AppColors.textGrey,
     height: 1.5,
   );
-
-   /// White body text for use on dark backgrounds.
   static final TextStyle bodyWhite = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 13.sp,
     fontWeight: FontWeight.normal,
-    color: Colors.white.withOpacity(0.9), // Slightly off-white
+    color: Colors.white.withOpacity(0.9),
     height: 1.5,
+  );
+  static final TextStyle bodySmall = TextStyle(
+    fontFamily: _primaryFontFamily,
+    fontSize: 12.sp,
+    fontWeight: FontWeight.normal,
+    color: AppColors.textGrey,
+    height: 1.4,
   );
 
   // --- Smaller Text Styles ---
-
-  /// Small text, often used for captions or metadata.
   static final TextStyle small = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 11.sp,
     fontWeight: FontWeight.normal,
     color: AppColors.textDark,
   );
-
-  /// Small text in grey color.
   static final TextStyle smallGrey = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 11.sp,
     fontWeight: FontWeight.normal,
     color: AppColors.textGrey,
   );
-
-   /// Small text in primary color.
   static final TextStyle smallPrimary = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 11.sp,
-    fontWeight: FontWeight.w500, // Medium weight
+    fontWeight: FontWeight.w500,
     color: AppColors.primary,
+  );
+  // ADDED: smallBold
+  static final TextStyle smallBold = TextStyle(
+    fontFamily: _primaryFontFamily,
+    fontSize: 11.sp,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textDark,
+  );
+  // ADDED: smallBody (can be same as small or slightly different)
+  static final TextStyle smallBody = TextStyle(
+    fontFamily: _primaryFontFamily,
+    fontSize: 11.sp,
+    fontWeight: FontWeight.normal,
+    color: AppColors.textDark,
+    height: 1.4,
   );
 
   // --- Button and Link Styles ---
-
-  /// Style for text inside primary buttons.
   static final TextStyle buttonText = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 14.sp,
     fontWeight: FontWeight.bold,
-    color: Colors.white, // Assuming buttons have dark background
+    color: Colors.white,
   );
-
-  /// Style for text links.
   static final TextStyle linkText = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 13.sp,
     fontWeight: FontWeight.w600,
-    color: AppColors.primary, // Use primary color for links
-    // decoration: TextDecoration.underline, // Optional: Underline links
+    color: AppColors.primary,
   );
+  // ADDED: buttonTextSmall
+  static final TextStyle buttonTextSmall = TextStyle(
+    fontFamily: _primaryFontFamily,
+    fontSize: 12.sp,
+    fontWeight: FontWeight.w600,
+    color: Colors.white,
+  ); // White for primary button example
 
-  // --- Specific Styles Used in Previous Examples ---
-
-   /// Style for labels above TextFields.
+  // --- Specific Styles Used ---
   static final TextStyle textFieldLabel = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 12.sp,
-    fontWeight: FontWeight.w500, // Medium weight
-    color: AppColors.primary, // Example: Use primary color
+    fontWeight: FontWeight.w500,
+    color: AppColors.primary,
   );
-
-
-  // --- Add other specific styles as needed ---
-  // Example: Error text style
   static final TextStyle errorText = TextStyle(
     fontFamily: _primaryFontFamily,
     fontSize: 11.sp,
     fontWeight: FontWeight.normal,
-    color: AppColors.error, // Use theme error color
+    color: AppColors.error,
   );
 
+  // --- List Item Styles ---
+  static final TextStyle listTitle = TextStyle(
+    fontFamily: _primaryFontFamily,
+    fontSize: 14.sp,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textDark,
+  );
+  static final TextStyle listSubtitle = TextStyle(
+    fontFamily: _primaryFontFamily,
+    fontSize: 11.5.sp,
+    fontWeight: FontWeight.normal,
+    color: AppColors.textGrey,
+    height: 1.4,
+  );
+
+  // --- AppBar Title ---
+  // Corrected: static final TextStyle appBarTitle; (This was likely the cause of the error if not initialized)
+  // Provide an actual style definition
+  static final TextStyle appBarTitle = TextStyle(
+    fontFamily: _primaryFontFamily,
+    fontSize: 16.sp,
+    fontWeight: FontWeight.w600,
+    color: AppColors.textDark, // Or Colors.white depending on AppBar theme
+  );
 }

@@ -1,26 +1,35 @@
-import 'package:firebase_auth/firebase_auth.dart';
+// lib/presentation/screen/profile_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:mama_care/presentation/view/profile_view.dart';
 import 'package:mama_care/presentation/viewmodel/profile_viewmodel.dart';
-import 'package:mama_care/domain/usecases/profile_use_case.dart';
+import 'package:mama_care/presentation/viewmodel/auth_viewmodel.dart'; // Import AuthViewModel
 import 'package:mama_care/injection.dart';
-import 'package:mama_care/data/local/database_helper.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => ProfileViewModel(
-        locator<ProfileUseCase>(),
-        locator<DatabaseHelper>(),
-        locator<FirebaseAuth>(),
-      ),
-      child: const Scaffold(
-        body: ProfileView(),
-      ),
+    // Use MultiProvider to provide both ViewModels
+    return MultiProvider(
+      providers: [
+        // Provide ProfileViewModel (depends on AuthViewModel)
+        ChangeNotifierProvider<ProfileViewModel>(
+          create: (_) => ProfileViewModel(
+            locator(), // ProfileUseCase
+            locator(), // AuthViewModel (already a singleton)
+            locator(), // Logger
+          ),
+        ),
+        // Provide AuthViewModel (read the existing singleton instance)
+        // This ensures both ProfileVM and ProfileView access the SAME AuthVM instance.
+        ChangeNotifierProvider.value(
+           value: locator<AuthViewModel>(),
+        ),
+      ],
+      child: const ProfileView(), // Child is the View
     );
   }
 }

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import 'package:mama_care/presentation/view/article_list_view.dart';
 import 'package:mama_care/presentation/viewmodel/article_list_viewmodel.dart';
 import 'package:mama_care/domain/usecases/article_usecase.dart';
-import 'package:mama_care/data/local/database_helper.dart';
+//import 'package:mama_care/data/local/database_helper.dart';
 import 'package:mama_care/injection.dart';
 
 class ArticleListScreen extends StatelessWidget {
@@ -14,7 +15,7 @@ class ArticleListScreen extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => ArticleListViewModel(
         locator<ArticleUseCase>(),
-        locator<DatabaseHelper>(),
+        locator<Logger>(),
       ),
       child: const Scaffold(
         body: ArticleListView(),

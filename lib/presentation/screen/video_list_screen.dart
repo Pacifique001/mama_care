@@ -13,7 +13,6 @@ class VideoListScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => VideoListViewModel(
-        locator<VideoUseCase>(),
         locator<DatabaseHelper>(),
       ),
       child: const Scaffold(

@@ -5,6 +5,9 @@ import 'package:flutter/foundation.dart'; // Import kReleaseMode
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:mama_care/presentation/screen/error_screen.dart'; // Import Splash Screen
+import 'package:mama_care/presentation/viewmodel/patient_appointments_viewmodel.dart';
+import 'package:mama_care/presentation/viewmodel/suggested_food_viewmodel.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 //import 'package:mama_care/presentation/viewmodel/dashboard_viewmodel.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
@@ -30,7 +33,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await _initializeApplication();
-
+    await dotenv.load();
     // --- Wrap the app with DevicePreview ---
     // Enable it only in debug mode (kDebugMode)
     runApp(
@@ -133,6 +136,7 @@ class MamaCareApp extends StatelessWidget {
                       (_) => NotFoundScreen(
                         errorMessage: 'Route Not Found',
                         errorDetails: 'No route defined for ${settings.name}',
+                        message: '',
                       ),
                 ),
           );
@@ -147,8 +151,15 @@ class MamaCareApp extends StatelessWidget {
       ChangeNotifierProvider<AuthViewModel>(
         create: (_) => locator<AuthViewModel>(),
       ),
-    ChangeNotifierProvider<DoctorDashboardViewModel>(
-    create: (_) => locator<DoctorDashboardViewModel>(),),
+      ChangeNotifierProvider<DoctorDashboardViewModel>(
+        create: (_) => locator<DoctorDashboardViewModel>(),
+      ),
+      ChangeNotifierProvider<SuggestedFoodViewModel>(
+        create: (_) => locator<SuggestedFoodViewModel>(),
+      ),
+      ChangeNotifierProvider<PatientAppointmentsViewModel>(
+        create: (_) => locator<PatientAppointmentsViewModel>(),
+      ),
     ];
   }
 }
@@ -173,6 +184,7 @@ class ErrorApp extends StatelessWidget {
             ).w('Retrying application initialization...');
             main(); // Call main() to restart the process
           },
+          message: '',
         ),
       ),
     );

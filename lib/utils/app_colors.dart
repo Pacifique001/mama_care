@@ -1,3 +1,4 @@
+// lib/utils/app_colors.dart
 import 'package:flutter/material.dart';
 
 class AppColors {
@@ -5,18 +6,18 @@ class AppColors {
   static const Color secondary = Color(0xFFF06292);
   static const Color background = Color(0xFFF5F5F5);
   static const Color textPrimary = Color(0xFF212121);
-
-
-  static const Color primaryLight = Color(0xFFFF80AB); // Lighter Pink
-
-  static const Color accent = Color(0xFFFFC107); // Example Amber
-
+  static const Color primaryLight = Color(0xFFFF80AB);
+  static const Color accent = Color(0xFFFFC107);
   static const Color textDark = Color(0xFF333333);
   static const Color textGrey = Color(0xFF757575);
-
   static const Color surface = Colors.white;
   static const Color error = Color(0xFFB00020);
-  
+
+  // --- ADDED COLORS ---
+  static const Color backgroundLight = Color(0xFFFAFAFA); // Example: Very light grey
+  static const Color greyLight = Color(0xFFE0E0E0); // Example: Light grey for borders/dividers
+  // --------------------
+
   // Dark theme
   static const Color primaryDark = Color(0xFFC2185B);
   static const Color backgroundDark = Color(0xFF121212);

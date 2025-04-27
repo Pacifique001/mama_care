@@ -24,7 +24,7 @@ class NurseDetailUseCase {
         final nurse = await _repository.getNurseById(nurseId);
         if (nurse == null) {
            _logger.w("UseCase: Nurse $nurseId not found by repository.");
-           throw NotFoundException("Nurse profile not found.", resourceId: nurseId);
+           throw DataNotFoundException("Nurse profile not found.");
         } else {
             _logger.i("UseCase: Retrieved nurse ${nurse.name}.");
         }

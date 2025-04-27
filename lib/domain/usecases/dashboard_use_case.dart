@@ -15,7 +15,7 @@ class DashboardUseCase {
   Future<UserModel?> getUserDetails(String userId) => _repo.getUserDetails(userId);
   Future<PregnancyDetails?> getPregnancyDetails(String userId) => _repo.getPregnancyDetails(userId);
   
-  Future<List<Appointment>> getAppointments(String userId) async {
+  Future<List<Appointment>?> getAppointments(String userId) async {
     try {
       final user = await getUserDetails(userId);
       if (user == null) return [];

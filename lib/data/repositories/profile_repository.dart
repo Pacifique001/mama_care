@@ -1,13 +1,14 @@
-import 'package:injectable/injectable.dart';
-import 'package:mama_care/domain/entities/user_model.dart';
-import '../../domain/entities/pregnancy_details.dart';
+// lib/data/repositories/profile_repository.dart
 
-@factoryMethod
+import 'package:injectable/injectable.dart';
+import '../../domain/entities/pregnancy_details.dart';
+// Removed UserModel import
+
+@factoryMethod // Keep if needed for injectable setup
 abstract class ProfileRepository {
-  Future<UserModel?> getUserProfile();
-  Future<void> updateUserProfile(UserModel user);
-  Future<void> deleteUserProfile(UserModel user); // Updated method signature
-  Future<void> sendProfileUpdateNotification(String message);
-  Future<PregnancyDetails?> getPregnancyDetails();
+  // Keep only pregnancy related methods (or rename repo if it ONLY handles pregnancy)
+  Future<PregnancyDetails?> getPregnancyDetails(String userId); // Pass userId
   Future<void> savePregnancyDetails(PregnancyDetails details);
+  Future<void> deletePregnancyDetails(String userId); // Method to delete
 }
+

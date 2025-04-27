@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import 'package:mama_care/presentation/view/article_view.dart';
 import 'package:mama_care/presentation/viewmodel/article_viewmodel.dart';
@@ -15,6 +16,7 @@ class ArticleScreen extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => ArticleViewModel(
         locator<ArticleUseCase>(),
+        locator<Logger>(),
         articleId,
       ),
       child: const ArticleView(),

@@ -7,13 +7,16 @@ class CustomButton extends StatelessWidget {
   final Color? color;
   final Color? textColor;
   final double borderRadius;
-  final Color?   backgroundColor ;
+  final Color? backgroundColor;
   final EdgeInsetsGeometry? padding;
   final double? elevation;
   final TextStyle? textStyle;
   final bool isLoading;
   final double? loadingIndicatorSize;
   final double? loadingIndicatorStrokeWidth;
+  final Color? borderColor;
+  final double? borderWidth;
+  final Widget? icon;
 
   const CustomButton({
     super.key,
@@ -30,6 +33,9 @@ class CustomButton extends StatelessWidget {
     this.isLoading = false,
     this.loadingIndicatorSize = 20,
     this.loadingIndicatorStrokeWidth = 2,
+    this.borderColor,
+    this.borderWidth,
+    this.icon,
   });
 
   @override
@@ -41,6 +47,9 @@ class CustomButton extends StatelessWidget {
         padding: padding ?? const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(borderRadius),
+          side: borderColor != null && borderWidth != null
+              ? BorderSide(color: borderColor!, width: borderWidth!)
+              : BorderSide.none,
         ),
         elevation: elevation ?? 0,
       ),
@@ -67,6 +76,26 @@ class CustomButton extends StatelessWidget {
         ),
       );
     }
+    
+    if (icon != null) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          icon!,
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: textStyle ?? Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: textColor ?? Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+          ),
+        ],
+      );
+    }
+    
     return Text(
       label,
       style: textStyle ?? Theme.of(context).textTheme.labelLarge?.copyWith(

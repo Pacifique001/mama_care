@@ -81,12 +81,20 @@ dependencies:
 
   google_maps_flutter_platform_interface: any
   device_preview: ^1.2.0
+  collection: ^1.19.1
+  firebase_storage: ^12.4.5
+  share_plus: ^11.0.0
+  youtube_player_flutter: ^9.1.1
+  timezone: ^0.10.0
+  flutter_timezone: ^4.1.0
+  flutter_dotenv: ^5.2.1
+  connectivity_plus: ^6.1.4
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
   
-  analyzer: ^6.2.0
+  analyzer: ^7.4.4
 
   # Code Generation
   build_runner: ^2.4.15
@@ -116,3 +124,4 @@ flutter:
     - assets/svg/dashboard/
     - assets/svg/timeline/
     - assets/svg/suggested_food/
+    - .env

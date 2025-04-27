@@ -9,7 +9,7 @@ class NotFoundScreen extends StatelessWidget {
     super.key,
     this.errorMessage,
     this.errorDetails,  // Add this parameter
-    this.onRetry,
+    this.onRetry, required String message,
   });
 
   @override

@@ -267,7 +267,6 @@ class _LoginViewState extends State<LoginView> {
           authViewModel.isLoading ? null : () => _handleLogin(authViewModel),
       backgroundColor: AppColors.primary,
       textStyle: TextStyles.buttonText,
-      
     );
   }
 
@@ -320,6 +319,18 @@ class _LoginViewState extends State<LoginView> {
     return null;
   }
 
+  Widget _buildPhoneLoginButton(AuthViewModel authViewModel) {
+    return CustomButton(
+      label: "Continue with Phone Number",
+      onPressed: authViewModel.isLoading ? null : _handlePhoneLogin,
+      backgroundColor: Colors.white,
+      textStyle: TextStyles.buttonText.copyWith(color: AppColors.primary),
+      borderColor: AppColors.primary,
+      borderWidth: 1,
+      icon: const Icon(Icons.phone, color: AppColors.primary),
+    );
+  }
+
   // --- Action Handlers ---
   Future<void> _handleLogin(AuthViewModel authViewModel) async {
     FocusManager.instance.primaryFocus?.unfocus();
@@ -339,6 +350,11 @@ class _LoginViewState extends State<LoginView> {
     } else {
       _showErrorSnackbar(result['message'] ?? 'Login failed.');
     }
+  }
+
+  void _handlePhoneLogin() {
+    _logger.i("Phone login action triggered");
+    Navigator.pushNamed(context, NavigationRoutes.phoneAuth);
   }
 
   Future<void> _handleGoogleLogin(AuthViewModel authViewModel) async {

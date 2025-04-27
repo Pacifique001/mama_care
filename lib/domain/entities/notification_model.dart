@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart'; // For @immutable
 // If you prefer json_serializable, uncomment annotations and run build_runner
 import 'package:json_annotation/json_annotation.dart';
 
- part 'notification_model.g.dart';
+part 'notification_model.g.dart';
 
 //@immutable
 @JsonSerializable() // Uncomment if using json_serializable
@@ -18,6 +18,7 @@ class NotificationModel extends Equatable {
   final String body;
   final int timestamp; // MillisecondsSinceEpoch UTC
   final bool isRead;
+  final bool isScheduled;
   // Store payload as a JSON encoded string in DB for simplicity,
   // but handle as Map<String, dynamic> in the model.
   final Map<String, dynamic>? payload;
@@ -31,7 +32,8 @@ class NotificationModel extends Equatable {
     required this.timestamp,
     this.isRead = false, // Default to false
     this.payload, // Keep optional
-    this.fcmMessageId, // Keep optional
+    this.fcmMessageId,
+    this.isScheduled=false, // Keep optional
   });
 
   // --- JSON/Map Serialization (Manual Implementation) ---
@@ -47,9 +49,13 @@ class NotificationModel extends Equatable {
         if (decoded is Map) {
           decodedPayload = Map<String, dynamic>.from(decoded);
         } else {
-           // Handle cases where payload is not a valid JSON map string
-           print("Warning: Notification payload was not a valid JSON map string: ${map['payload']}");
-           decodedPayload = {'_raw_payload': map['payload']}; // Store raw payload
+          // Handle cases where payload is not a valid JSON map string
+          print(
+            "Warning: Notification payload was not a valid JSON map string: ${map['payload']}",
+          );
+          decodedPayload = {
+            '_raw_payload': map['payload'],
+          }; // Store raw payload
         }
       } catch (e) {
         print("Error decoding notification payload: $e"); // Log error
@@ -57,8 +63,8 @@ class NotificationModel extends Equatable {
         decodedPayload = {'_raw_payload': map['payload']};
       }
     } else if (map['payload'] is Map) {
-       // Handle if payload is already a Map (e.g., from Firestore directly)
-       decodedPayload = Map<String, dynamic>.from(map['payload']);
+      // Handle if payload is already a Map (e.g., from Firestore directly)
+      decodedPayload = Map<String, dynamic>.from(map['payload']);
     }
 
     return NotificationModel(
@@ -66,8 +72,10 @@ class NotificationModel extends Equatable {
       userId: map['userId'] as String?, // Handle nullable userId
       title: map['title'] as String? ?? 'Notification',
       body: map['body'] as String? ?? '',
-      timestamp: map['timestamp'] as int? ?? DateTime.now().millisecondsSinceEpoch,
-      isRead: (map['isRead'] as int? ?? 0) == 1, // Handle int from DB (0 or 1)
+      timestamp:
+          map['timestamp'] as int? ?? DateTime.now().millisecondsSinceEpoch,
+      isRead: (map['isRead'] as int? ?? 0) == 1, 
+      isScheduled: (map['isScheduled'] as int? ?? 0) == 1,// Handle int from DB (0 or 1)
       payload: decodedPayload, // Assign decoded map
       fcmMessageId: map['fcmMessageId'] as String?,
     );
@@ -82,30 +90,33 @@ class NotificationModel extends Equatable {
       'title': title,
       'body': body,
       'timestamp': timestamp,
-      'isRead': isRead ? 1 : 0, // Store bool as int (0 or 1)
+      'isRead': isRead ? 1 : 0,
+      'isScheduled': isScheduled ? 1 : 0, // Store bool as int (0 or 1)
       // Store payload map as JSON string in the map for DB compatibility
-      'payload': payload != null && payload!.isNotEmpty ? jsonEncode(payload) : null,
+      'payload':
+          payload != null && payload!.isNotEmpty ? jsonEncode(payload) : null,
       'fcmMessageId': fcmMessageId,
     };
   }
 
   // --- Convenience Aliases for fromMap/toMap if needed elsewhere ---
-  factory NotificationModel.fromJson(Map<String, dynamic> json) => NotificationModel.fromMap(json);
+  factory NotificationModel.fromJson(Map<String, dynamic> json) =>
+      NotificationModel.fromMap(json);
   Map<String, dynamic> toJson() => toMap();
-
 
   // --- Equatable ---
   @override
   List<Object?> get props => [
-        id,
-        userId, // Add userId to props
-        title,
-        body,
-        timestamp,
-        isRead,
-        payload, // Comparing Maps can be tricky, ensure deep equality if needed
-        fcmMessageId,
-      ];
+    id,
+    userId, // Add userId to props
+    title,
+    body,
+    timestamp,
+    isRead,
+    payload, // Comparing Maps can be tricky, ensure deep equality if needed
+    fcmMessageId,
+    isScheduled,
+  ];
 
   // --- CopyWith ---
   NotificationModel copyWith({
@@ -116,10 +127,13 @@ class NotificationModel extends Equatable {
     String? body,
     int? timestamp,
     bool? isRead,
+    bool? isScheduled,
     Map<String, dynamic>? payload,
-    ValueGetter<Map<String, dynamic>?>? payloadOrNull, // Helper for setting payload to null
+    ValueGetter<Map<String, dynamic>?>?
+    payloadOrNull, // Helper for setting payload to null
     String? fcmMessageId,
-    ValueGetter<String?>? fcmMessageIdOrNull, // Helper for setting fcmMessageId to null
+    ValueGetter<String?>?
+    fcmMessageIdOrNull, // Helper for setting fcmMessageId to null
   }) {
     return NotificationModel(
       id: id ?? this.id,
@@ -129,10 +143,15 @@ class NotificationModel extends Equatable {
       body: body ?? this.body,
       timestamp: timestamp ?? this.timestamp,
       isRead: isRead ?? this.isRead,
+      isScheduled: isScheduled ?? this.isScheduled,
       // Handle setting payload explicitly OR setting it to null
-      payload: payloadOrNull != null ? payloadOrNull() : (payload ?? this.payload),
+      payload:
+          payloadOrNull != null ? payloadOrNull() : (payload ?? this.payload),
       // Handle setting fcmMessageId explicitly OR setting it to null
-      fcmMessageId: fcmMessageIdOrNull != null ? fcmMessageIdOrNull() : (fcmMessageId ?? this.fcmMessageId),
+      fcmMessageId:
+          fcmMessageIdOrNull != null
+              ? fcmMessageIdOrNull()
+              : (fcmMessageId ?? this.fcmMessageId),
     );
   }
 

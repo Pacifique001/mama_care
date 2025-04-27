@@ -15,4 +15,11 @@ abstract class NotificationRepository {
   Future<int> getUnreadNotificationCount();
   Future<void> markAllNotificationsAsRead();
   Future<String?> getDeviceToken();
+  Future<void> scheduleNotification({
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+    Map<String, dynamic>? payload,
+    int? notificationId,
+  });
 }

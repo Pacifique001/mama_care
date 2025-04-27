@@ -1,6 +1,8 @@
+// lib/domain/usecases/profile_use_case.dart
+
 import 'package:injectable/injectable.dart';
 import 'package:mama_care/data/repositories/profile_repository.dart';
-import 'package:mama_care/domain/entities/user_model.dart';
+// Removed UserModel import
 import 'package:mama_care/domain/entities/pregnancy_details.dart';
 
 @injectable
@@ -9,37 +11,23 @@ class ProfileUseCase {
 
   ProfileUseCase(this._repository);
 
-  Future<UserModel?> getUserProfile() async {
+  // Keep only pregnancy related methods
+  Future<PregnancyDetails?> getPregnancyDetails(String userId) async {
+    // Add error handling if desired
     try {
-      return await _repository.getUserProfile();
+      return await _repository.getPregnancyDetails(userId);
     } catch (e) {
-      print("Error fetching user profile: $e");
-      return null;
-    }
-  }
-
-  Future<void> updateUserProfile(UserModel user) async {
-    await _repository.updateUserProfile(user);
-  }
-
-  Future<void> deleteUserProfile(UserModel user) async {
-    await _repository.deleteUserProfile(user); // Updated to pass the user parameter
-  }
-
-  Future<void> sendProfileUpdateNotification(String message) async {
-    await _repository.sendProfileUpdateNotification(message);
-  }
-
-  Future<PregnancyDetails?> getPregnancyDetails() async {
-    try {
-      return await _repository.getPregnancyDetails();
-    } catch (e) {
-      print("Error fetching pregnancy details: $e");
+      print("Error fetching pregnancy details in UseCase: $e"); // Use logger
       return null;
     }
   }
 
   Future<void> savePregnancyDetails(PregnancyDetails details) async {
+    // Add validation or business logic if needed
     await _repository.savePregnancyDetails(details);
+  }
+
+   Future<void> deletePregnancyDetails(String userId) async {
+    await _repository.deletePregnancyDetails(userId);
   }
 }

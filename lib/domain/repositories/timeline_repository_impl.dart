@@ -23,29 +23,29 @@ class TimelineRepositoryImpl implements TimelineRepository {
 
   @override
   @override
-Future<PregnancyDetails?> getPregnancyDetails() async {
-  try {
-    final userId = _firebaseAuth.currentUser?.uid;
-    if (userId == null) throw Exception("User not logged in");
+  Future<PregnancyDetails?> getPregnancyDetails() async {
+    try {
+      final userId = _firebaseAuth.currentUser?.uid;
+      if (userId == null) throw Exception("User not logged in");
 
-    // Try local database first
-    final localDetails = await _databaseHelper.query(
-      'pregnancy_details',
-      where: 'user_id = ?',
-      whereArgs: [userId],
-    );
+      // Try local database first
+      final localDetails = await _databaseHelper.query(
+        'pregnancy_details',
+        where: 'userId = ?',
+        whereArgs: [userId],
+      );
 
-    if (localDetails.isNotEmpty) {
-      // Just take the first item if there are multiple
-      return PregnancyDetails.fromJson(localDetails.first);
+      if (localDetails.isNotEmpty) {
+        // Just take the first item if there are multiple
+        return PregnancyDetails.fromJson(localDetails.first);
+      }
+
+      return null;
+    } catch (e) {
+      print("Error fetching pregnancy details: $e");
+      return null;
     }
-
-    return null;
-  } catch (e) {
-    print("Error fetching pregnancy details: $e");
-    return null;
   }
-}
 
   @override
   Future<void> addTimelineEvent(TimelineEvent event) async {
@@ -69,30 +69,33 @@ Future<PregnancyDetails?> getPregnancyDetails() async {
     try {
       final user = _firebaseAuth.currentUser;
       if (user == null) throw Exception("User not logged in");
-      
+
       // Try to get from local database first
       final localEvents = await _databaseHelper.query(
         'timeline_events',
         where: 'user_id = ?',
         whereArgs: [user.uid],
       );
-      
+
       if (localEvents.isNotEmpty) {
         return localEvents
             .map((event) => TimelineEvent.fromJson(event))
             .toList();
       }
-      
+
       // If local database is empty, fetch from Firestore
-      QuerySnapshot snapshot = await _firestore
-          .collection('timeline_events')
-          .doc(user.uid)
-          .collection('events')
-          .orderBy('createdAt', descending: true)
-          .get();
-          
+      QuerySnapshot snapshot =
+          await _firestore
+              .collection('timeline_events')
+              .doc(user.uid)
+              .collection('events')
+              .orderBy('createdAt', descending: true)
+              .get();
+
       return snapshot.docs
-          .map((doc) => TimelineEvent.fromJson(doc.data() as Map<String, dynamic>))
+          .map(
+            (doc) => TimelineEvent.fromJson(doc.data() as Map<String, dynamic>),
+          )
           .toList();
     } catch (e) {
       throw Exception('Failed to fetch timeline events: ${e.toString()}');
@@ -150,11 +153,13 @@ Future<PregnancyDetails?> getPregnancyDetails() async {
       // Note: FirebaseMessaging.sendMessage is not available in the client SDK
       // You would typically use a server for this
       // Here's a simplified example assuming you have a custom implementation
-      
+
       final token = await _firebaseMessaging.getToken();
       if (token != null) {
         // This is a placeholder - you would typically call your backend API here
-        print('Would send notification with token: $token and message: $message');
+        print(
+          'Would send notification with token: $token and message: $message',
+        );
       }
     } catch (e) {
       throw Exception('Failed to send notification: ${e.toString()}');

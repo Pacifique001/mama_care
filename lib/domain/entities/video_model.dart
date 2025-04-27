@@ -6,16 +6,10 @@ class VideoModel extends Equatable { // Extend Equatable
   final String id;
   final String title;
   final String description;
-  final String url;
+  final String url; // Assuming this holds the video stream URL
   final String thumbnailUrl;
-  // isFavorite status is now managed per user in user_video_prefs table,
-  // so it shouldn't be part of the core VideoModel unless it represents
-  // a global 'featured' status or similar.
-  // Assuming 'isFavorite' here might represent something else or is a remnant.
-  // If it truly represents the *user's* favorite status, it shouldn't be stored
-  // directly in the main 'app_videos' table/model.
-  // For this example, I'll keep it but comment on its potential issue.
-  final bool isFavorite; // <-- Reconsider if this belongs here vs user_video_prefs
+  // isFavorite status: Kept as per original model, but ideally managed per user.
+  final bool isFavorite;
   final String category;
   final int? publishedAt; // Optional: Store publish timestamp (MillisecondsSinceEpoch)
   final int? duration; // Optional: Store duration in seconds
@@ -25,12 +19,13 @@ class VideoModel extends Equatable { // Extend Equatable
     required this.id,
     required this.title,
     required this.description,
-    required this.url,
+    required this.url, // Use 'url' for the video stream
     required this.thumbnailUrl,
     this.isFavorite = false, // Default to false if kept
     required this.category,
     this.publishedAt, // Optional
-    this.duration, // Optional
+    this.duration,    // Optional
+    // Removed the redundant 'videoUrl' parameter here
   });
 
   // Factory constructor for creating from JSON/Map (e.g., from API or DB)
@@ -40,10 +35,10 @@ class VideoModel extends Equatable { // Extend Equatable
       id: json['id'] as String? ?? '',
       title: json['title'] as String? ?? 'No Title',
       description: json['description'] as String? ?? '',
-      url: json['url'] as String? ?? '',
+      url: json['url'] as String? ?? '', // Map 'url' from JSON
       thumbnailUrl: json['thumbnailUrl'] as String? ?? '',
       // Convert integer from DB back to boolean
-      isFavorite: (json['isFavorite'] as int? ?? 0) == 1, // <-- Convert Int to Bool
+      isFavorite: (json['isFavorite'] as int? ?? 0) == 1, // Convert Int to Bool
       category: json['category'] as String? ?? 'Uncategorized',
       publishedAt: json['publishedAt'] as int?,
       duration: json['duration'] as int?,
@@ -59,10 +54,10 @@ class VideoModel extends Equatable { // Extend Equatable
       'id': id,
       'title': title,
       'description': description,
-      'url': url,
+      'url': url, // Map 'url' to JSON
       'thumbnailUrl': thumbnailUrl,
       // Convert boolean to integer (0 or 1) for DB storage
-      'isFavorite': isFavorite ? 1 : 0, // <-- Convert Bool to Int
+      'isFavorite': isFavorite ? 1 : 0, // Convert Bool to Int
       'category': category,
       'publishedAt': publishedAt,
       'duration': duration,
@@ -74,6 +69,7 @@ class VideoModel extends Equatable { // Extend Equatable
 
 
   // copyWith method for creating modified copies (useful for state updates)
+  // Simplified handling of nullable fields
   VideoModel copyWith({
     String? id,
     String? title,
@@ -82,10 +78,11 @@ class VideoModel extends Equatable { // Extend Equatable
     String? thumbnailUrl,
     bool? isFavorite,
     String? category,
-    int? publishedAt,
-    ValueGetter<int?>? nullablePublishedAt, // Allow setting to null
-    int? duration,
-     ValueGetter<int?>? nullableDuration, // Allow setting to null
+    int? publishedAt, // Directly accept int?
+    int? duration,    // Directly accept int?
+    // Add flags if you need to explicitly set optional fields to null
+    bool setPublishedAtNull = false,
+    bool setDurationNull = false,
   }) {
     return VideoModel(
       id: id ?? this.id,
@@ -95,8 +92,10 @@ class VideoModel extends Equatable { // Extend Equatable
       thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
       isFavorite: isFavorite ?? this.isFavorite,
       category: category ?? this.category,
-      publishedAt: nullablePublishedAt != null ? nullablePublishedAt() : (publishedAt ?? this.publishedAt),
-      duration: nullableDuration != null ? nullableDuration() : (duration ?? this.duration),
+      // If setPublishedAtNull is true, set to null, otherwise update or keep existing
+      publishedAt: setPublishedAtNull ? null : (publishedAt ?? this.publishedAt),
+      // If setDurationNull is true, set to null, otherwise update or keep existing
+      duration: setDurationNull ? null : (duration ?? this.duration),
     );
   }
 
@@ -106,7 +105,7 @@ class VideoModel extends Equatable { // Extend Equatable
         id,
         title,
         description,
-        url,
+        url, // Include 'url' in props
         thumbnailUrl,
         isFavorite,
         category,

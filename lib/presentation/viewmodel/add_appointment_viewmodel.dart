@@ -1,159 +1,276 @@
 // lib/presentation/viewmodel/add_appointment_viewmodel.dart
 
-import 'package:flutter/foundation.dart';
-import 'package:injectable/injectable.dart';
-import 'package:logger/logger.dart';
-import 'package:mama_care/core/error/exceptions.dart';
-import 'package:mama_care/domain/entities/appointment.dart';
-import 'package:mama_care/domain/entities/doctor.dart'; // <-- Import Doctor entity
-import 'package:mama_care/domain/usecases/calendar_use_case.dart';
-import 'package:mama_care/domain/usecases/doctor_usecase.dart'; // <-- Import/Create DoctorUseCase
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:uuid/uuid.dart';
+import 'package:flutter/foundation.dart'; // For ChangeNotifier
+import 'package:injectable/injectable.dart'; // For dependency injection
+import 'package:intl/intl.dart';
+import 'package:logger/logger.dart'; // For logging
+import 'package:mama_care/domain/entities/appointment.dart'; // Your Appointment entity
+import 'package:mama_care/domain/entities/user_model.dart'; // Your User entity
+import 'package:mama_care/domain/entities/user_role.dart'; // Your UserRole enum
+import 'package:mama_care/domain/usecases/appointment_usecase.dart'; // UseCase for appointment logic
+import 'package:mama_care/domain/usecases/doctor_usecase.dart'; // UseCase for doctor-related logic
+import 'package:mama_care/presentation/viewmodel/auth_viewmodel.dart'; // To get current user state
+import 'package:mama_care/data/repositories/notification_repository.dart'; // To send notifications
+import 'package:mama_care/core/error/exceptions.dart'; // Your custom exceptions
 
-@injectable
+@injectable // Marks class for dependency injection
 class AddAppointmentViewModel extends ChangeNotifier {
-  // --- Dependencies ---
-  final CalendarUseCase _calendarUseCase; // To add appointment
-  final DoctorUseCase _doctorUseCase; // To get doctors <-- ADD THIS
+  // --- Dependencies (Injected via Constructor) ---
+  final AppointmentUseCase _appointmentUseCase;
+  final DoctorUseCase _doctorUseCase; // UseCase to fetch doctors
+  final AuthViewModel _authViewModel; // To access current user information
+  final NotificationRepository
+  _notificationRepository; // To trigger notifications
   final Logger _logger;
-  final FirebaseAuth _auth;
-  final Uuid _uuid;
 
-  // --- State ---
-  bool _isLoading = false; // General loading state
-  bool _isLoadingDoctors = false; // Specific loading for doctors
-  String? _error;
-  List<Doctor> _availableDoctors = []; // State for doctors list
+  // --- State Variables ---
+  List<UserModel> _availableDoctors = []; // List to hold fetched doctors
+  bool _isLoading = false; // Tracks saving appointment state
+  bool _isLoadingDoctors = false; // Tracks loading state for doctor list
+  String? _error; // Holds error messages for the UI
 
   // --- Constructor ---
   AddAppointmentViewModel(
-    this._calendarUseCase,
-    this._doctorUseCase, // <-- ADD THIS
+    this._appointmentUseCase,
+    this._doctorUseCase,
+    this._authViewModel, // Ensure AuthViewModel is a Singleton or provided correctly
+    this._notificationRepository,
     this._logger,
-    this._auth,
-    this._uuid,
   ) {
     _logger.i("AddAppointmentViewModel initialized.");
-    // Load doctors immediately? Or trigger from View? Let's load here.
+    // Immediately load available doctors when the ViewModel is created
     loadAvailableDoctors();
   }
 
   // --- Getters ---
-  bool get isLoading => _isLoading;
-  bool get isLoadingDoctors => _isLoadingDoctors;
+  // Provide read-only access to the state for the UI
+  List<UserModel> get availableDoctors => List.unmodifiable(_availableDoctors);
+  bool get isLoading => _isLoading; // Is an appointment currently being saved?
+  bool get isLoadingDoctors =>
+      _isLoadingDoctors; // Is the doctor list currently loading?
   String? get error => _error;
-  List<Doctor> get availableDoctors => List.unmodifiable(_availableDoctors);
 
-  // --- Private State Setters ---
-  void _setLoading(bool value) {
-    if (_isLoading == value) return;
-    _isLoading = value;
+  // --- Private State Mutators ---
+  // Helper to set the main loading state (saving appointment)
+  void _setLoading(bool loading) {
+    if (_isLoading == loading) return; // Avoid unnecessary notifications
+    _isLoading = loading;
     notifyListeners();
   }
-  void _setLoadingDoctors(bool value) {
-     if (_isLoadingDoctors == value) return;
-     _isLoadingDoctors = value;
-     notifyListeners();
+
+  // Helper to set the loading state for fetching doctors
+  void _setLoadingDoctors(bool loading) {
+    if (_isLoadingDoctors == loading) return;
+    _isLoadingDoctors = loading;
+    notifyListeners();
   }
 
+  // Helper to set an error message and notify listeners
   void _setError(String? message) {
-    if (_error == message) return;
-    _error = message;
-    if (message != null) _logger.e("AddAppointmentViewModel Error: $message");
-    notifyListeners();
+    // Use a separate method to allow logging/processing before notifying
+    _updateErrorState(message);
   }
 
-  void _clearError() => _setError(null);
+  // Helper to update error state and log
+  void _updateErrorState(String? message) {
+    if (_error == message) return; // Avoid redundant notifications
+    _error = message;
+    if (message != null) {
+      _logger.e("AddAppointmentViewModel Error: $message");
+    }
+    notifyListeners(); // Notify UI when error changes
+  }
 
-  // --- Public Methods ---
-
-  /// Loads the list of available doctors.
-  Future<void> loadAvailableDoctors() async {
-    _logger.i("VM: Loading available doctors...");
-    _setLoadingDoctors(true);
-    _clearError(); // Clear previous errors before loading
-    try {
-      // Use DoctorUseCase to fetch doctors
-      _availableDoctors = await _doctorUseCase.getAvailableDoctors();
-      _logger.i("VM: Loaded ${_availableDoctors.length} available doctors.");
-      if (_availableDoctors.isEmpty) {
-         _logger.w("VM: No doctors found.");
-         // Optionally set an error/info message if no doctors are available
-         // _setError("No doctors available for selection.");
-      }
-    } catch (e, s) {
-      _logger.e("VM: Failed to load available doctors", error: e, stackTrace: s);
-      _setError(e is AppException ? e.message : "Could not load doctor list.");
-      _availableDoctors = []; // Ensure list is empty on error
-    } finally {
-      _setLoadingDoctors(false);
+  /// Clears the current error message.
+  void clearError() {
+    // Only notify if there was actually an error to clear
+    if (_error != null) {
+      _error = null;
+      notifyListeners();
     }
   }
 
+  // --- Data Loading ---
 
-  /// Saves a new appointment. Requires reason, dateTime, and doctorId.
-  Future<bool> saveAppointment({
+  /// Loads the list of available doctors (users with role 'doctor').
+  /// Optionally filters by specialty if implemented in the UseCase/Repository.
+  Future<void> loadAvailableDoctors({String? specialtyFilter}) async {
+    // Prevent fetching if already loading doctors
+    if (_isLoadingDoctors) return;
+
+    _setLoadingDoctors(true);
+    _setError(null); // Clear previous errors before loading
+
+    try {
+      _logger.d("ViewModel: Loading available doctors...");
+      // Call the DoctorUseCase to get doctors (should return List<UserModel>)
+      _availableDoctors = await _doctorUseCase.getAvailableDoctors(
+        specialtyFilter: specialtyFilter,
+      );
+      _logger.i(
+        "ViewModel: Loaded ${_availableDoctors.length} available doctors.",
+      );
+
+      // Handle the case where no doctors are found
+      if (_availableDoctors.isEmpty) {
+        _logger.w("ViewModel: No available doctors found matching criteria.");
+        // Optionally set an informational message instead of an error
+        // _setError("No doctors are currently available for booking.");
+      } else {
+        _error = null; // Ensure error is null on success
+      }
+    } catch (e, stackTrace) {
+      _logger.e(
+        "ViewModel: Error loading available doctors",
+        error: e,
+        stackTrace: stackTrace,
+      );
+      // Provide a user-friendly error message
+      _setError("Failed to load available doctors. Please try again later.");
+      _availableDoctors = []; // Ensure the list is empty on error
+    } finally {
+      _setLoadingDoctors(false); // Ensure loading indicator stops
+    }
+  }
+
+  // --- Core Action Method ---
+
+  /// Attempts to create and save a new appointment request.
+  /// Returns the created [Appointment] object on success, otherwise returns `null`.
+  /// Triggers a local notification simulation after successful creation.
+  Future<Appointment?> saveAppointment({
+    required String doctorId,
     required String reason,
     required DateTime dateTime,
-    required String doctorId,
     String? notes,
   }) async {
-    _logger.i("Attempting to save appointment: '$reason' at $dateTime with Doctor ID: $doctorId");
-    _setLoading(true); // Use general loading for save action
-    _clearError();
+    // Prevent multiple save attempts simultaneously
+    if (_isLoading) return null;
 
-    final userId = _auth.currentUser?.uid;
-    if (userId == null) {
-       _handleSaveError("User not authenticated. Cannot save appointment.");
-       return false;
-    }
-    if (reason.trim().isEmpty) {
-        _handleSaveError("Reason for appointment cannot be empty.");
-        return false;
-    }
-     if (doctorId.trim().isEmpty) {
-        _handleSaveError("Doctor selection is required.");
-        return false;
-    }
+    _setLoading(true);
+    _setError(null); // Clear previous errors
 
-    final newAppointment = Appointment(
-      id: _uuid.v4(),
-      userId: userId,
-      doctorId: doctorId,
-      requestedTime: dateTime,
-      scheduledTime: null,
-      status: AppointmentStatus.pending, // Default status
-      nurseId: null,
-      reason: reason.trim(),
-      notes: notes?.trim().isEmpty ?? true ? null : notes!.trim(),
-    );
+    Appointment?
+    createdAppointment; // To store the successfully created appointment
 
     try {
-      _logger.d("Calling CalendarUseCase to add appointment: ${newAppointment.id}");
-      await _calendarUseCase.addAppointment(newAppointment);
-      _logger.i("Appointment saved successfully (ID: ${newAppointment.id}).");
-      _setLoading(false);
-      return true;
+      _logger.d("ViewModel: Saving appointment request -> Doctor $doctorId");
 
-    } on DatabaseException catch (e, stackTrace) {
-       _logger.e("Database error saving appointment ${newAppointment.id}", error: e, stackTrace: stackTrace);
-       _handleSaveError("Failed to save appointment to local storage.");
-       return false;
-    } on ApiException catch (e, stackTrace) {
-        _logger.e("API error saving appointment ${newAppointment.id}", error: e, stackTrace: stackTrace);
-        _handleSaveError("Failed to save appointment: ${e.message}");
-        return false;
+      // 1. Get current user from the injected AuthViewModel
+      final currentUser = _authViewModel.localUser;
+      if (currentUser == null) {
+        throw AuthException("You must be logged in to request an appointment.");
+      }
+
+      // 2. Verify the current user's role (must be a patient)
+      if (currentUser.role != UserRole.patient) {
+        throw AuthException(
+          "Action not allowed: Only patients can request appointments.",
+        );
+      }
+
+      // 3. Call the Appointment UseCase to handle the creation logic
+      // This UseCase fetches names and calls the repository. It returns the created Appointment.
+      createdAppointment = await _appointmentUseCase.requestAppointment(
+        patientId: currentUser.id, // Use the patient's ID from UserModel
+        doctorId: doctorId,
+        reason: reason,
+        dateTime: dateTime,
+        notes: notes,
+      );
+
+      _logger.i(
+        "ViewModel: Appointment request successful. ID: ${createdAppointment?.id}",
+      );
+
+      // 4. Trigger Local Notification Simulation (if creation was successful)
+      if (createdAppointment != null) {
+        _triggerDoctorNotificationSimulation(createdAppointment);
+      }
+
+      _setLoading(false);
+      return createdAppointment; // Return the created object on success
+
+      // --- Specific Error Handling ---
+    } on AuthException catch (e) {
+      _logger.w("ViewModel: Auth error saving appointment - ${e.message}");
+      _setError(e.message); // Set specific error message
+      _setLoading(false);
+      return null; // Indicate failure
+    } on DataNotFoundException catch (e) {
+      _logger.w(
+        "ViewModel: Data not found error saving appointment - ${e.message}",
+      );
+      _setError(e.message); // e.g., "Selected doctor could not be found."
+      _setLoading(false);
+      return null;
+    } on InvalidArgumentException catch (e) {
+      _logger.w(
+        "ViewModel: Invalid argument error saving appointment - ${e.message}",
+      );
+      _setError(e.message); // e.g., "Reason cannot be empty."
+      _setLoading(false);
+      return null;
+    } on DomainException catch (e) {
+      // Catch specific domain errors from UseCase
+      _logger.e(
+        "ViewModel: Domain error saving appointment - ${e.message}",
+        error: e.cause,
+      );
+      _setError(e.message); // Use message from DomainException
+      _setLoading(false);
+      return null;
     } catch (e, stackTrace) {
-       _logger.e("Unexpected error saving appointment ${newAppointment.id}", error: e, stackTrace: stackTrace);
-       _handleSaveError("An unexpected error occurred while saving.");
-       return false;
+      // Catch any other unexpected errors
+      _logger.e(
+        "ViewModel: Unexpected error saving appointment",
+        error: e,
+        stackTrace: stackTrace,
+      );
+      _setError("An unexpected error occurred. Please try again.");
+      _setLoading(false);
+      return null; // Indicate failure
     }
   }
 
-  // Helper for handling save errors
-  void _handleSaveError(String message) {
-     _setError(message);
-     _setLoading(false);
+  /// Simulates sending a notification to the doctor by showing a local one
+  /// on the current (patient's) device using the NotificationRepository.
+  void _triggerDoctorNotificationSimulation(Appointment appointment) {
+    _logger.i(
+      "Simulating notification to Doctor ${appointment.doctorId} for appointment ${appointment.id}",
+    );
+    try {
+      // Use the injected NotificationRepository
+      _notificationRepository.sendNotification({
+        'title': 'New Appointment Request',
+        'body':
+            '${appointment.patientName} requested an appointment for ${DateFormat.yMd().add_jm().format(appointment.appointmentDateTime)}.', // Include date/time
+        // Data payload for potential interaction if the notification was real
+        'payload': {
+          'type': 'appointment_request', // Helps identify notification type
+          'appointmentId': appointment.id,
+          'doctorId': appointment.doctorId,
+          'patientId': appointment.patientId,
+           'route': '/doctor/appointment/${appointment.id}' // Example target route
+        },
+      });
+      _logger.d("Local notification simulation triggered.");
+    } catch (e, s) {
+      // Log error but don't interrupt the main flow
+      _logger.e(
+        "Error triggering local doctor notification simulation",
+        error: e,
+        stackTrace: s,
+      );
+    }
   }
-}
+
+  // --- Cleanup ---
+  @override
+  void dispose() {
+    _logger.i("Disposing AddAppointmentViewModel.");
+    // If listeners were added to AuthViewModel, remove them here:
+    // _authViewModel.removeListener(_handleAuthViewModelChanges);
+    super.dispose();
+  }
+} // End of AddAppointmentViewModel Class

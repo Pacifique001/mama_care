@@ -30,12 +30,14 @@ import 'data/repositories/food_repository.dart' as _i865;
 import 'data/repositories/hospital_repository.dart' as _i343;
 import 'data/repositories/login_repository.dart' as _i48;
 import 'data/repositories/notification_repository.dart' as _i718;
+import 'data/repositories/nurse_assignment_repository.dart' as _i505;
 import 'data/repositories/nurse_repository.dart' as _i413;
 import 'data/repositories/pregnancy_detail_repository.dart' as _i993;
 import 'data/repositories/profile_repository.dart' as _i1011;
 import 'data/repositories/risk_detector_repository.dart' as _i844;
 import 'data/repositories/signup_repository.dart' as _i771;
 import 'data/repositories/timeline_repository.dart' as _i625;
+import 'data/repositories/user_repository.dart' as _i443;
 import 'data/repositories/video_repository.dart' as _i1010;
 import 'domain/entities/admin_repository_impl.dart' as _i979;
 import 'domain/repositories/appointment_repository_impl.dart' as _i1052;
@@ -48,13 +50,16 @@ import 'domain/repositories/food_repository_impl.dart' as _i531;
 import 'domain/repositories/hospital_repository_impl.dart' as _i49;
 import 'domain/repositories/login_repository_impl.dart' as _i389;
 import 'domain/repositories/notification_repository_impl.dart' as _i792;
+import 'domain/repositories/nurse_assignment_repository_impl.dart' as _i809;
 import 'domain/repositories/nurse_repository_impl.dart' as _i1056;
 import 'domain/repositories/pregnancy_detail_repository_impl.dart' as _i947;
 import 'domain/repositories/profile_repository_impl.dart' as _i125;
 import 'domain/repositories/risk_detector_repository_impl.dart' as _i224;
 import 'domain/repositories/timeline_repository_impl.dart' as _i878;
+import 'domain/repositories/user_repository_impl.dart' as _i800;
 import 'domain/repositories/video_repository_impl.dart' as _i1041;
 import 'domain/usecases/admin_usecase.dart' as _i528;
+import 'domain/usecases/appointment_usecase.dart' as _i234;
 import 'domain/usecases/article_usecase.dart' as _i160;
 import 'domain/usecases/assign_nurse_usecase.dart' as _i1068;
 import 'domain/usecases/calendar_use_case.dart' as _i65;
@@ -65,6 +70,7 @@ import 'domain/usecases/hospital_use_case.dart' as _i157;
 import 'domain/usecases/login_use_case.dart' as _i1005;
 import 'domain/usecases/notification_use_case.dart' as _i356;
 import 'domain/usecases/nurse_assignment_management_usecase.dart' as _i56;
+import 'domain/usecases/nurse_assignment_usecase.dart' as _i429;
 import 'domain/usecases/nurse_dashboard_usecase.dart' as _i59;
 import 'domain/usecases/nurse_detail_usecase.dart' as _i666;
 import 'domain/usecases/pregnancy_detail_use_case.dart' as _i870;
@@ -76,16 +82,24 @@ import 'domain/usecases/video_usecase.dart' as _i155;
 import 'injection.dart' as _i464;
 import 'presentation/viewmodel/add_appointment_viewmodel.dart' as _i587;
 import 'presentation/viewmodel/admin_dashboard_viewmodel.dart' as _i113;
+import 'presentation/viewmodel/article_list_viewmodel.dart' as _i149;
+import 'presentation/viewmodel/article_viewmodel.dart' as _i894;
 import 'presentation/viewmodel/assign_nurse_viewmodel.dart' as _i428;
 import 'presentation/viewmodel/auth_viewmodel.dart' as _i785;
 import 'presentation/viewmodel/dashboard_viewmodel.dart' as _i906;
+import 'presentation/viewmodel/doctor_appointments_viewmodel.dart' as _i986;
 import 'presentation/viewmodel/doctor_dashboard_viewmodel.dart' as _i437;
+import 'presentation/viewmodel/food_detail_viewmodel.dart' as _i447;
 import 'presentation/viewmodel/hospital_viewmodel.dart' as _i180;
 import 'presentation/viewmodel/nurse_assignment_management_viewmodel.dart'
     as _i974;
 import 'presentation/viewmodel/nurse_dashboard_viewmodel.dart' as _i332;
 import 'presentation/viewmodel/nurse_detail_viewmodel.dart' as _i418;
+import 'presentation/viewmodel/patient_appointments_viewmodel.dart' as _i517;
+import 'presentation/viewmodel/pregnancy_detail_viewmodel.dart' as _i68;
+import 'presentation/viewmodel/profile_viewmodel.dart' as _i181;
 import 'presentation/viewmodel/signup_viewmodel.dart' as _i681;
+import 'presentation/viewmodel/suggested_food_viewmodel.dart' as _i290;
 
 // initializes the registration of main-scope dependencies inside of GetIt
 _i174.GetIt $initGetIt(
@@ -112,11 +126,27 @@ _i174.GetIt $initGetIt(
       gh<_i892.FirebaseMessaging>(),
     ),
   );
+  gh.factory<_i505.NurseAssignmentRepository>(
+    () => _i809.NurseAssignmentRepositoryImpl(
+      gh<_i974.FirebaseFirestore>(),
+      gh<_i974.Logger>(),
+    ),
+  );
+  gh.factory<_i343.HospitalRepository>(
+    () => _i49.HospitalRepositoryImpl(
+      gh<_i361.Dio>(),
+      gh<_i441.DatabaseHelper>(),
+      gh<_i974.Logger>(),
+    ),
+  );
   gh.factory<_i595.DoctorRepository>(
     () => _i988.DoctorRepositoryImpl(
       gh<_i974.FirebaseFirestore>(),
       gh<_i974.Logger>(),
     ),
+  );
+  gh.factory<_i157.HospitalUseCase>(
+    () => _i157.HospitalUseCase(gh<_i343.HospitalRepository>()),
   );
   gh.factory<_i1040.AdminRepository>(
     () => _i979.AdminRepositoryImpl(
@@ -138,13 +168,24 @@ _i174.GetIt $initGetIt(
   gh.factory<_i681.SignupViewModel>(
     () => _i681.SignupViewModel(gh<_i785.AuthViewModel>(), gh<_i974.Logger>()),
   );
-  gh.factory<_i865.FoodRepository>(() => _i531.FoodRepositoryImpl());
   gh.factory<_i718.NotificationRepository>(
     () => _i792.NotificationRepositoryImpl(
       gh<_i892.FirebaseMessaging>(),
       gh<_i441.DatabaseHelper>(),
       gh<_i974.Logger>(),
       gh<_i59.FirebaseAuth>(),
+    ),
+  );
+  gh.factory<_i639.AppointmentRepository>(
+    () => _i1052.AppointmentRepositoryImpl(
+      gh<_i974.FirebaseFirestore>(),
+      gh<_i974.Logger>(),
+    ),
+  );
+  gh.factory<_i736.DashboardUseCase>(
+    () => _i736.DashboardUseCase(
+      gh<_i1059.DashboardRepository>(),
+      gh<_i639.AppointmentRepository>(),
     ),
   );
   gh.factory<_i413.NurseRepository>(
@@ -155,6 +196,15 @@ _i174.GetIt $initGetIt(
       gh<_i706.Uuid>(),
     ),
   );
+  gh.factory<_i180.HospitalViewModel>(
+    () => _i180.HospitalViewModel(
+      gh<_i157.HospitalUseCase>(),
+      gh<_i974.Logger>(),
+    ),
+  );
+  gh.factory<_i447.FoodDetailViewModel>(
+    () => _i447.FoodDetailViewModel(gh<_i974.Logger>()),
+  );
   gh.factory<_i144.DoctorUseCase>(
     () => _i144.DoctorUseCase(gh<_i595.DoctorRepository>(), gh<_i974.Logger>()),
   );
@@ -163,6 +213,15 @@ _i174.GetIt $initGetIt(
       gh<_i413.NurseRepository>(),
       gh<_i974.Logger>(),
     ),
+  );
+  gh.factory<_i865.FoodRepository>(
+    () => _i531.FoodRepositoryImpl(
+      gh<_i441.DatabaseHelper>(),
+      gh<_i974.Logger>(),
+    ),
+  );
+  gh.factory<_i443.UserRepository>(
+    () => _i800.UserRepositoryImpl(gh<_i974.FirebaseFirestore>()),
   );
   gh.factory<_i528.AdminUseCase>(
     () => _i528.AdminUseCase(
@@ -180,13 +239,6 @@ _i174.GetIt $initGetIt(
       gh<_i974.FirebaseFirestore>(),
       gh<_i441.DatabaseHelper>(),
       gh<_i892.FirebaseMessaging>(),
-    ),
-  );
-  gh.factory<_i879.CalendarRepository>(
-    () => _i350.CalendarRepositoryImpl(
-      gh<_i441.DatabaseHelper>(),
-      gh<_i59.FirebaseAuth>(),
-      gh<_i974.Logger>(),
     ),
   );
   gh.factory<_i993.PregnancyDetailRepository>(
@@ -207,13 +259,6 @@ _i174.GetIt $initGetIt(
       gh<_i974.Logger>(),
     ),
   );
-  gh.factory<_i639.AppointmentRepository>(
-    () => _i1052.AppointmentRepositoryImpl(
-      gh<_i974.FirebaseFirestore>(),
-      gh<_i974.Logger>(),
-      gh<_i706.Uuid>(),
-    ),
-  );
   gh.factory<_i11.ArticleRepository>(
     () => _i1026.ArticleRepositoryImpl(
       gh<_i441.DatabaseHelper>(),
@@ -229,6 +274,13 @@ _i174.GetIt $initGetIt(
       gh<_i974.Logger>(),
     ),
   );
+  gh.factory<_i906.DashboardViewModel>(
+    () => _i906.DashboardViewModel(
+      gh<_i736.DashboardUseCase>(),
+      gh<_i441.DatabaseHelper>(),
+      gh<_i974.Logger>(),
+    ),
+  );
   gh.factory<_i1010.VideoRepository>(
     () => _i1041.VideoRepositoryImpl(
       gh<_i361.Dio>(),
@@ -237,26 +289,23 @@ _i174.GetIt $initGetIt(
       gh<_i59.FirebaseAuth>(),
     ),
   );
-  gh.factory<_i343.HospitalRepository>(
-    () => _i49.HospitalRepositoryImpl(
-      gh<_i361.Dio>(),
-      gh<_i441.DatabaseHelper>(),
-      gh<_i892.FirebaseMessaging>(),
+  gh.factory<_i1068.AssignNurseUseCase>(
+    () => _i1068.AssignNurseUseCase(
+      gh<_i413.NurseRepository>(),
+      gh<_i59.FirebaseAuth>(),
+      gh<_i974.Logger>(),
+    ),
+  );
+  gh.factory<_i332.NurseDashboardViewModel>(
+    () => _i332.NurseDashboardViewModel(
+      gh<_i413.NurseRepository>(),
+      gh<_i59.FirebaseAuth>(),
+      gh<_i974.Logger>(),
     ),
   );
   gh.factory<_i1011.ProfileRepository>(
     () => _i125.ProfileRepositoryImpl(
       gh<_i441.DatabaseHelper>(),
-      gh<_i892.FirebaseMessaging>(),
-    ),
-  );
-  gh.factory<_i437.DoctorDashboardViewModel>(
-    () => _i437.DoctorDashboardViewModel(gh<_i639.AppointmentRepository>()),
-  );
-  gh.factory<_i1068.AssignNurseUseCase>(
-    () => _i1068.AssignNurseUseCase(
-      gh<_i413.NurseRepository>(),
-      gh<_i59.FirebaseAuth>(),
       gh<_i974.Logger>(),
     ),
   );
@@ -265,6 +314,14 @@ _i174.GetIt $initGetIt(
       gh<_i361.Dio>(),
       gh<_i441.DatabaseHelper>(),
       gh<_i892.FirebaseMessaging>(),
+    ),
+  );
+  gh.factory<_i879.CalendarRepository>(
+    () => _i350.CalendarRepositoryImpl(
+      gh<_i441.DatabaseHelper>(),
+      gh<_i59.FirebaseAuth>(),
+      gh<_i974.Logger>(),
+      gh<_i974.FirebaseFirestore>(),
     ),
   );
   gh.factory<_i1011.TimelineUseCase>(
@@ -295,6 +352,13 @@ _i174.GetIt $initGetIt(
   gh.factory<_i356.NotificationUseCase>(
     () => _i356.NotificationUseCase(gh<_i718.NotificationRepository>()),
   );
+  gh.factory<_i234.AppointmentUseCase>(
+    () => _i234.AppointmentUseCase(
+      gh<_i639.AppointmentRepository>(),
+      gh<_i443.UserRepository>(),
+      gh<_i974.Logger>(),
+    ),
+  );
   gh.factoryParam<_i418.NurseDetailViewModel, String, dynamic>(
     (nurseId, _) => _i418.NurseDetailViewModel(
       gh<_i666.NurseDetailUseCase>(),
@@ -302,8 +366,25 @@ _i174.GetIt $initGetIt(
       nurseId,
     ),
   );
-  gh.factory<_i157.HospitalUseCase>(
-    () => _i157.HospitalUseCase(gh<_i343.HospitalRepository>()),
+  gh.factory<_i429.NurseAssignmentUseCase>(
+    () => _i429.NurseAssignmentUseCase(
+      gh<_i505.NurseAssignmentRepository>(),
+      gh<_i974.Logger>(),
+      gh<_i443.UserRepository>(),
+    ),
+  );
+  gh.factoryParam<_i894.ArticleViewModel, String, dynamic>(
+    (articleId, _) => _i894.ArticleViewModel(
+      gh<_i160.ArticleUseCase>(),
+      gh<_i974.Logger>(),
+      articleId,
+    ),
+  );
+  gh.factory<_i290.SuggestedFoodViewModel>(
+    () => _i290.SuggestedFoodViewModel(
+      gh<_i59.FoodUseCase>(),
+      gh<_i974.Logger>(),
+    ),
   );
   gh.factory<_i1005.LoginUseCase>(
     () => _i1005.LoginUseCase(gh<_i48.LoginRepository>()),
@@ -315,10 +396,12 @@ _i174.GetIt $initGetIt(
       gh<_i974.Logger>(),
     ),
   );
-  gh.factory<_i736.DashboardUseCase>(
-    () => _i736.DashboardUseCase(
-      gh<_i1059.DashboardRepository>(),
-      gh<_i639.AppointmentRepository>(),
+  gh.factory<_i437.DoctorDashboardViewModel>(
+    () => _i437.DoctorDashboardViewModel(
+      gh<_i234.AppointmentUseCase>(),
+      gh<_i785.AuthViewModel>(),
+      gh<_i505.NurseAssignmentRepository>(),
+      gh<_i974.Logger>(),
     ),
   );
   gh.factory<_i65.CalendarUseCase>(
@@ -333,41 +416,53 @@ _i174.GetIt $initGetIt(
       gh<_i974.Logger>(),
     ),
   );
+  gh.factory<_i587.AddAppointmentViewModel>(
+    () => _i587.AddAppointmentViewModel(
+      gh<_i234.AppointmentUseCase>(),
+      gh<_i144.DoctorUseCase>(),
+      gh<_i785.AuthViewModel>(),
+      gh<_i718.NotificationRepository>(),
+      gh<_i974.Logger>(),
+    ),
+  );
   gh.factory<_i808.ProfileUseCase>(
     () => _i808.ProfileUseCase(gh<_i1011.ProfileRepository>()),
   );
-  gh.factory<_i906.DashboardViewModel>(
-    () => _i906.DashboardViewModel(
-      gh<_i736.DashboardUseCase>(),
-      gh<_i441.DatabaseHelper>(),
+  gh.factory<_i68.PregnancyDetailViewModel>(
+    () => _i68.PregnancyDetailViewModel(
+      gh<_i870.PregnancyDetailUseCase>(),
+      gh<_i785.AuthViewModel>(),
       gh<_i974.Logger>(),
-      gh<_i59.FirebaseAuth>(),
     ),
   );
-  gh.factory<_i587.AddAppointmentViewModel>(
-    () => _i587.AddAppointmentViewModel(
-      gh<_i65.CalendarUseCase>(),
-      gh<_i144.DoctorUseCase>(),
-      gh<_i974.Logger>(),
-      gh<_i59.FirebaseAuth>(),
-      gh<_i706.Uuid>(),
-    ),
-  );
-  gh.factory<_i180.HospitalViewModel>(
-    () => _i180.HospitalViewModel(
-      gh<_i157.HospitalUseCase>(),
-      gh<_i441.DatabaseHelper>(),
+  gh.factory<_i149.ArticleListViewModel>(
+    () => _i149.ArticleListViewModel(
+      gh<_i160.ArticleUseCase>(),
       gh<_i974.Logger>(),
     ),
   );
   gh.factory<_i850.RiskDetectorUseCase>(
     () => _i850.RiskDetectorUseCase(gh<_i844.RiskDetectorRepository>()),
   );
-  gh.factory<_i332.NurseDashboardViewModel>(
-    () => _i332.NurseDashboardViewModel(
-      gh<_i59.NurseDashboardUseCase>(),
+  gh.factory<_i181.ProfileViewModel>(
+    () => _i181.ProfileViewModel(
+      gh<_i808.ProfileUseCase>(),
+      gh<_i785.AuthViewModel>(),
       gh<_i974.Logger>(),
-      gh<_i59.FirebaseAuth>(),
+    ),
+  );
+  gh.factory<_i517.PatientAppointmentsViewModel>(
+    () => _i517.PatientAppointmentsViewModel(
+      gh<_i234.AppointmentUseCase>(),
+      gh<_i785.AuthViewModel>(),
+      gh<_i974.Logger>(),
+    ),
+  );
+  gh.factory<_i986.DoctorAppointmentsViewModel>(
+    () => _i986.DoctorAppointmentsViewModel(
+      gh<_i234.AppointmentUseCase>(),
+      gh<_i785.AuthViewModel>(),
+      gh<_i974.Logger>(),
     ),
   );
   return getIt;

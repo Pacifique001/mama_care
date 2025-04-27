@@ -29,9 +29,10 @@
         "npm --prefix \"$RESOURCE_DIR\" run build"
       ]
     },
+    
     {
-      "source": "mamacare",
-      "codebase": "mamacare",
+      "source": "mama_care",
+      "codebase": "mama_care",
       "ignore": [
         "venv",
         ".git",

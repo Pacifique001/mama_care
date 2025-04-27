@@ -18,7 +18,7 @@ class NurseAssignmentCard extends StatelessWidget {
 
   NurseAssignmentCard({
     super.key,
-    required this.nurse, // Changed parameter name
+    required this.nurse, required Null Function() onTap, // Changed parameter name
   });
 
   @override

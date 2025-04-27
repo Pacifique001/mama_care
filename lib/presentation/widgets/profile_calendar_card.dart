@@ -18,8 +18,9 @@ class ProfileCalendarCard extends StatelessWidget {
           headerVisible: false,
           daysOfWeekVisible: false,
           focusedDay: DateTime.now(),
-          firstDay: details?.startDate ?? DateTime.now(),
-          lastDay: details?.dueDate ?? DateTime.now().add(const Duration(days: 280)),
+          firstDay: details?.startingDay ?? DateTime.now(),
+          lastDay:
+              details?.dueDate ?? DateTime.now().add(const Duration(days: 280)),
           calendarStyle: CalendarStyle(
             todayDecoration: BoxDecoration(
               color: Theme.of(context).primaryColor,
@@ -31,8 +32,10 @@ class ProfileCalendarCard extends StatelessWidget {
             ),
           ),
           calendarBuilders: CalendarBuilders(
-            defaultBuilder: (context, day, focusedDay) => _buildDayCell(day, false),
-            todayBuilder: (context, day, focusedDay) => _buildDayCell(day, true),
+            defaultBuilder:
+                (context, day, focusedDay) => _buildDayCell(day, false),
+            todayBuilder:
+                (context, day, focusedDay) => _buildDayCell(day, true),
           ),
         ),
       ),
@@ -40,7 +43,7 @@ class ProfileCalendarCard extends StatelessWidget {
   }
 
   Widget _buildDayCell(DateTime day, bool isToday) {
-    final daysDifference = day.difference(details?.startDate ?? day).inDays;
+    final daysDifference = day.difference(details?.startingDay ?? day).inDays;
     return Center(
       child: Text(
         '$daysDifference',

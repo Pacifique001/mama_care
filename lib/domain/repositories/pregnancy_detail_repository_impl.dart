@@ -28,8 +28,8 @@ class PregnancyDetailRepositoryImpl implements PregnancyDetailRepository {
         await _firestore
             .collection('pregnancy_details')
             .doc(user.uid)
-            .set(details.toJson(details));
-        await _databaseHelper.insert('pregnancy_details', details.toJson(details));
+            .set(details.toJson());
+        await _databaseHelper.insert('pregnancy_details', details.toJson());
       }
     } catch (e) {
       throw Exception('Failed to add pregnancy details: ${e.toString()}');
@@ -63,10 +63,10 @@ class PregnancyDetailRepositoryImpl implements PregnancyDetailRepository {
         await _firestore
             .collection('pregnancy_details')
             .doc(user.uid)
-            .update(details.toJson(details));
+            .update(details.toJson());
         await _databaseHelper. update(
           'pregnancy_details',
-          details.toJson(details),
+          details.toJson(),
           where: 'userId = ?',
           whereArgs: [user.uid],
         );
@@ -112,6 +112,6 @@ class PregnancyDetailRepositoryImpl implements PregnancyDetailRepository {
 
   @override
   Future<void> savePregnancyDetails(PregnancyDetails details) async {
-    await _databaseHelper.insert('pregnancy_details', details.toJson(details));
+    await _databaseHelper.insert('pregnancy_details', details.toJson());
   }
 }
